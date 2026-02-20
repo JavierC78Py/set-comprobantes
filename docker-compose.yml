@@ -1,0 +1,97 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: set-comprobantes-db
+    environment:
+      POSTGRES_DB: set_comprobantes
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - set-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./backend
+      target: runner
+    container_name: set-comprobantes-api
+    environment:
+      DATABASE_URL: postgresql://postgres:${DB_PASSWORD:-changeme}@postgres:5432/set_comprobantes
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-change_me_32_chars_minimum_please!}
+      PORT: 4000
+      NODE_ENV: ${NODE_ENV:-production}
+      DEBUG: ${DEBUG:-false}
+      PUPPETEER_HEADLESS: "true"
+      MARANGATU_BASE_URL: https://marangatu.set.gov.py
+    ports:
+      - "4000:4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - set-network
+    restart: unless-stopped
+    command: ["node", "dist/main.js"]
+
+  worker:
+    build:
+      context: ./backend
+      target: runner
+    container_name: set-comprobantes-worker
+    environment:
+      DATABASE_URL: postgresql://postgres:${DB_PASSWORD:-changeme}@postgres:5432/set_comprobantes
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-change_me_32_chars_minimum_please!}
+      NODE_ENV: ${NODE_ENV:-production}
+      DEBUG: ${DEBUG:-false}
+      PUPPETEER_HEADLESS: "true"
+      MARANGATU_BASE_URL: https://marangatu.set.gov.py
+      WORKER_POLL_INTERVAL_MS: ${WORKER_POLL_INTERVAL_MS:-5000}
+      WORKER_MAX_CONCURRENT_JOBS: ${WORKER_MAX_CONCURRENT_JOBS:-2}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - set-network
+    restart: unless-stopped
+    command: ["node", "dist/worker.js"]
+    # Limitar recursos del worker por el uso intensivo de Puppeteer
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+  migrate:
+    build:
+      context: ./backend
+      target: build
+    container_name: set-comprobantes-migrate
+    environment:
+      DATABASE_URL: postgresql://postgres:${DB_PASSWORD:-changeme}@postgres:5432/set_comprobantes
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-change_me_32_chars_minimum_please!}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - set-network
+    command: ["node", "-e", "require('ts-node').register(); require('./src/db/migrate.ts');"]
+    profiles:
+      - migrate
+
+volumes:
+  postgres_data:
+
+networks:
+  set-network:
+    driver: bridge

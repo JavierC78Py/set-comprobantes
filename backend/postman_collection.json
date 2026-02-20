@@ -1,0 +1,706 @@
+{
+  "info": {
+    "name": "SET Comprobantes API",
+    "description": "Automatización de comprobantes fiscales SET Paraguay. Multitenant, scraping Marangatu, descarga XML eKuatia, envío ORDS.\n\n**Setup:**\n1. Importar esta colección en Postman\n2. Crear un environment con la variable `base_url = http://localhost:4000`\n3. Seleccionar el environment antes de ejecutar requests\n4. Tras crear un tenant, copiar el `id` retornado a la variable `tenant_id`",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:4000",
+      "type": "string"
+    },
+    {
+      "key": "tenant_id",
+      "value": "",
+      "type": "string",
+      "description": "Completar con el UUID retornado al crear un tenant"
+    },
+    {
+      "key": "job_id",
+      "value": "",
+      "type": "string",
+      "description": "Completar con el UUID de un job"
+    },
+    {
+      "key": "comprobante_id",
+      "value": "",
+      "type": "string",
+      "description": "Completar con el UUID de un comprobante"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            },
+            "description": "Verifica que la API está funcionando y conectada a PostgreSQL."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "url": { "raw": "{{base_url}}/health" }
+              },
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"status\": \"ok\",\n  \"timestamp\": \"2025-01-15T10:00:00.000Z\",\n  \"version\": \"1.0.0\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Tenants",
+      "item": [
+        {
+          "name": "Crear tenant (BASIC auth ORDS)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.id) {",
+                  "  pm.collectionVariables.set('tenant_id', res.id);",
+                  "  console.log('tenant_id guardado:', res.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre_fantasia\": \"Farmacia Central\",\n  \"ruc\": \"80012345-6\",\n  \"email_contacto\": \"admin@farmaciacentral.com.py\",\n  \"config\": {\n    \"ruc_login\": \"80012345-6\",\n    \"usuario_marangatu\": \"mi_usuario_set\",\n    \"clave_marangatu\": \"mi_clave_secreta\",\n    \"enviar_a_ords_automaticamente\": true,\n    \"frecuencia_sincronizacion_minutos\": 60,\n    \"ords_base_url\": \"https://oracle.empresa.com/ords\",\n    \"ords_endpoint_facturas\": \"/api/v1/facturas\",\n    \"ords_tipo_autenticacion\": \"BASIC\",\n    \"ords_usuario\": \"oracle_user\",\n    \"ords_password\": \"oracle_pass\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/tenants",
+              "host": ["{{base_url}}"],
+              "path": ["tenants"]
+            },
+            "description": "Crea una empresa con autenticación BASIC para ORDS. El script de test guarda automáticamente el `id` en la variable `tenant_id`."
+          },
+          "response": [
+            {
+              "name": "201 Created",
+              "originalRequest": {
+                "method": "POST",
+                "url": { "raw": "{{base_url}}/tenants" }
+              },
+              "status": "Created",
+              "code": 201,
+              "body": "{\n  \"id\": \"550e8400-e29b-41d4-a716-446655440000\",\n  \"nombre_fantasia\": \"Farmacia Central\",\n  \"ruc\": \"80012345-6\",\n  \"email_contacto\": \"admin@farmaciacentral.com.py\",\n  \"activo\": true,\n  \"created_at\": \"2025-01-15T10:00:00.000Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Crear tenant (BEARER auth ORDS)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre_fantasia\": \"Distribuidora Nacional\",\n  \"ruc\": \"80099999-9\",\n  \"email_contacto\": \"admin@distribuidora.com.py\",\n  \"config\": {\n    \"ruc_login\": \"80099999-9\",\n    \"usuario_marangatu\": \"usuario_dist\",\n    \"clave_marangatu\": \"clave_dist_secreta\",\n    \"enviar_a_ords_automaticamente\": false,\n    \"frecuencia_sincronizacion_minutos\": 120,\n    \"ords_base_url\": \"https://oracle2.empresa.com/ords\",\n    \"ords_endpoint_facturas\": \"/v2/comprobantes\",\n    \"ords_tipo_autenticacion\": \"BEARER\",\n    \"ords_token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/tenants",
+              "host": ["{{base_url}}"],
+              "path": ["tenants"]
+            },
+            "description": "Crea una empresa con autenticación BEARER token para ORDS."
+          }
+        },
+        {
+          "name": "Crear tenant (sin ORDS, con SolveCaptcha por tenant)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre_fantasia\": \"Ferreteria Lopez\",\n  \"ruc\": \"5123456-7\",\n  \"email_contacto\": null,\n  \"config\": {\n    \"ruc_login\": \"5123456-7\",\n    \"usuario_marangatu\": \"usuario_lopez\",\n    \"clave_marangatu\": \"clave_lopez\",\n    \"enviar_a_ords_automaticamente\": false,\n    \"frecuencia_sincronizacion_minutos\": 60,\n    \"extra_config\": {\n      \"solvecaptcha_api_key\": \"api_key_especifica_para_este_tenant\"\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/tenants",
+              "host": ["{{base_url}}"],
+              "path": ["tenants"]
+            },
+            "description": "Crea un tenant sin ORDS configurado y con API key de SolveCaptcha específica por tenant."
+          }
+        },
+        {
+          "name": "Listar tenants",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/tenants",
+              "host": ["{{base_url}}"],
+              "path": ["tenants"]
+            },
+            "description": "Lista todas las empresas registradas. No retorna campos cifrados."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "url": { "raw": "{{base_url}}/tenants" }
+              },
+              "status": "OK",
+              "code": 200,
+              "body": "[\n  {\n    \"id\": \"550e8400-e29b-41d4-a716-446655440000\",\n    \"nombre_fantasia\": \"Farmacia Central\",\n    \"ruc\": \"80012345-6\",\n    \"email_contacto\": \"admin@farmaciacentral.com.py\",\n    \"timezone\": \"America/Asuncion\",\n    \"activo\": true,\n    \"created_at\": \"2025-01-15T10:00:00.000Z\",\n    \"updated_at\": \"2025-01-15T10:00:00.000Z\"\n  }\n]"
+            }
+          ]
+        },
+        {
+          "name": "Obtener tenant por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/tenants/{{tenant_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["tenants", "{{tenant_id}}"]
+            },
+            "description": "Detalle de un tenant. Incluye `config` sin campos cifrados."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "url": { "raw": "{{base_url}}/tenants/{{tenant_id}}" }
+              },
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"id\": \"550e8400-e29b-41d4-a716-446655440000\",\n  \"nombre_fantasia\": \"Farmacia Central\",\n  \"ruc\": \"80012345-6\",\n  \"activo\": true,\n  \"config\": {\n    \"ruc_login\": \"80012345-6\",\n    \"usuario_marangatu\": \"mi_usuario_set\",\n    \"enviar_a_ords_automaticamente\": true,\n    \"frecuencia_sincronizacion_minutos\": 60,\n    \"ords_base_url\": \"https://oracle.empresa.com/ords\",\n    \"ords_endpoint_facturas\": \"/api/v1/facturas\",\n    \"ords_tipo_autenticacion\": \"BASIC\",\n    \"ords_usuario\": \"oracle_user\"\n  }\n}"
+            },
+            {
+              "name": "404 Not Found",
+              "originalRequest": {
+                "method": "GET",
+                "url": { "raw": "{{base_url}}/tenants/uuid-inexistente" }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "body": "{\n  \"error\": \"Tenant no encontrado\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Actualizar tenant",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre_fantasia\": \"Farmacia Central Actualizada\",\n  \"email_contacto\": \"nuevo@farmaciacentral.com.py\",\n  \"config\": {\n    \"frecuencia_sincronizacion_minutos\": 30,\n    \"enviar_a_ords_automaticamente\": true\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/tenants/{{tenant_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["tenants", "{{tenant_id}}"]
+            },
+            "description": "Actualiza datos del tenant y/o su configuración. Solo se actualizan los campos enviados."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Jobs",
+      "item": [
+        {
+          "name": "Encolar sync comprobantes (mes actual)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.job_id) {",
+                  "  pm.collectionVariables.set('job_id', res.job_id);",
+                  "  console.log('job_id guardado:', res.job_id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{base_url}}/tenants/{{tenant_id}}/jobs/sync-comprobantes",
+              "host": ["{{base_url}}"],
+              "path": ["tenants", "{{tenant_id}}", "jobs", "sync-comprobantes"]
+            },
+            "description": "Encola un sync del mes y año actuales. El worker lo procesará en el próximo ciclo de polling."
+          },
+          "response": [
+            {
+              "name": "201 Created",
+              "originalRequest": {
+                "method": "POST",
+                "url": { "raw": "{{base_url}}/tenants/{{tenant_id}}/jobs/sync-comprobantes" }
+              },
+              "status": "Created",
+              "code": 201,
+              "body": "{\n  \"job_id\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n  \"tipo_job\": \"SYNC_COMPROBANTES\",\n  \"estado\": \"PENDING\",\n  \"next_run_at\": \"2025-01-15T10:00:00.000Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Encolar sync comprobantes (mes y año específico)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mes\": 11,\n  \"anio\": 2024\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/tenants/{{tenant_id}}/jobs/sync-comprobantes",
+              "host": ["{{base_url}}"],
+              "path": ["tenants", "{{tenant_id}}", "jobs", "sync-comprobantes"]
+            },
+            "description": "Encola un sync para noviembre 2024. Útil para re-sincronizar períodos pasados."
+          }
+        },
+        {
+          "name": "Encolar descarga XML (batch completo)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"batch_size\": 20\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/tenants/{{tenant_id}}/jobs/descargar-xml",
+              "host": ["{{base_url}}"],
+              "path": ["tenants", "{{tenant_id}}", "jobs", "descargar-xml"]
+            },
+            "description": "Encola la descarga de XMLs para los próximos 20 comprobantes pendientes con CDC."
+          }
+        },
+        {
+          "name": "Encolar descarga XML (comprobante específico)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"comprobante_id\": \"{{comprobante_id}}\",\n  \"batch_size\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/tenants/{{tenant_id}}/jobs/descargar-xml",
+              "host": ["{{base_url}}"],
+              "path": ["tenants", "{{tenant_id}}", "jobs", "descargar-xml"]
+            },
+            "description": "Fuerza la descarga del XML de un comprobante específico."
+          }
+        },
+        {
+          "name": "Listar jobs (todos)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/jobs",
+              "host": ["{{base_url}}"],
+              "path": ["jobs"]
+            },
+            "description": "Lista todos los jobs de todos los tenants."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "url": { "raw": "{{base_url}}/jobs" }
+              },
+              "status": "OK",
+              "code": 200,
+              "body": "[\n  {\n    \"id\": \"a1b2c3d4-...\",\n    \"tenant_id\": \"550e8400-...\",\n    \"tipo_job\": \"SYNC_COMPROBANTES\",\n    \"estado\": \"DONE\",\n    \"intentos\": 1,\n    \"max_intentos\": 3,\n    \"error_message\": null,\n    \"last_run_at\": \"2025-01-15T10:00:05.000Z\",\n    \"next_run_at\": \"2025-01-15T10:00:00.000Z\",\n    \"created_at\": \"2025-01-15T10:00:00.000Z\"\n  }\n]"
+            }
+          ]
+        },
+        {
+          "name": "Listar jobs (filtrar por tenant)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/jobs?tenant_id={{tenant_id}}&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["jobs"],
+              "query": [
+                { "key": "tenant_id", "value": "{{tenant_id}}" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Listar jobs PENDING",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/jobs?estado=PENDING",
+              "host": ["{{base_url}}"],
+              "path": ["jobs"],
+              "query": [
+                { "key": "estado", "value": "PENDING" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Listar jobs FAILED",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/jobs?estado=FAILED",
+              "host": ["{{base_url}}"],
+              "path": ["jobs"],
+              "query": [
+                { "key": "estado", "value": "FAILED" }
+              ]
+            },
+            "description": "Lista jobs fallidos. Revisar `error_message` para diagnóstico."
+          }
+        },
+        {
+          "name": "Listar jobs de tipo DESCARGAR_XML",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/jobs?tipo_job=DESCARGAR_XML&tenant_id={{tenant_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["jobs"],
+              "query": [
+                { "key": "tipo_job", "value": "DESCARGAR_XML" },
+                { "key": "tenant_id", "value": "{{tenant_id}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Obtener job por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/jobs/{{job_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["jobs", "{{job_id}}"]
+            },
+            "description": "Detalle completo de un job incluyendo `payload` y `error_message`."
+          },
+          "response": [
+            {
+              "name": "200 OK — Job exitoso",
+              "originalRequest": {
+                "method": "GET",
+                "url": { "raw": "{{base_url}}/jobs/{{job_id}}" }
+              },
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"id\": \"a1b2c3d4-...\",\n  \"tenant_id\": \"550e8400-...\",\n  \"tipo_job\": \"SYNC_COMPROBANTES\",\n  \"payload\": { \"mes\": 1, \"anio\": 2025 },\n  \"estado\": \"DONE\",\n  \"intentos\": 1,\n  \"max_intentos\": 3,\n  \"error_message\": null,\n  \"last_run_at\": \"2025-01-15T10:00:05.000Z\",\n  \"created_at\": \"2025-01-15T10:00:00.000Z\"\n}"
+            },
+            {
+              "name": "200 OK — Job fallido",
+              "originalRequest": {
+                "method": "GET",
+                "url": { "raw": "{{base_url}}/jobs/{{job_id}}" }
+              },
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"id\": \"a1b2c3d4-...\",\n  \"tipo_job\": \"DESCARGAR_XML\",\n  \"estado\": \"FAILED\",\n  \"intentos\": 3,\n  \"error_message\": \"SolveCaptcha retornó error: ERROR_ZERO_BALANCE\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Comprobantes",
+      "item": [
+        {
+          "name": "Listar comprobantes (todos)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/tenants/{{tenant_id}}/comprobantes",
+              "host": ["{{base_url}}"],
+              "path": ["tenants", "{{tenant_id}}", "comprobantes"]
+            },
+            "description": "Lista paginada de comprobantes del tenant. Retorna primeros 20."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "url": { "raw": "{{base_url}}/tenants/{{tenant_id}}/comprobantes" }
+              },
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"data\": [\n    {\n      \"id\": \"comp-uuid-...\",\n      \"tenant_id\": \"550e8400-...\",\n      \"origen\": \"ELECTRONICO\",\n      \"ruc_vendedor\": \"80012345-6\",\n      \"razon_social_vendedor\": \"Empresa XYZ S.A.\",\n      \"cdc\": \"01800123456001001000000012024110112345678901\",\n      \"numero_comprobante\": \"001-001-0001234\",\n      \"tipo_comprobante\": \"FACTURA\",\n      \"fecha_emision\": \"2024-11-01\",\n      \"total_operacion\": \"194000\",\n      \"xml_descargado_at\": \"2025-01-15T10:05:00.000Z\",\n      \"detalles_xml\": { \"... campos parseados del XML\" : true },\n      \"created_at\": \"2025-01-15T10:01:00.000Z\"\n    }\n  ],\n  \"pagination\": {\n    \"page\": 1,\n    \"limit\": 20,\n    \"total\": 342\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Listar comprobantes con filtros",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/tenants/{{tenant_id}}/comprobantes?fecha_desde=2024-11-01&fecha_hasta=2024-11-30&tipo_comprobante=FACTURA&page=1&limit=50",
+              "host": ["{{base_url}}"],
+              "path": ["tenants", "{{tenant_id}}", "comprobantes"],
+              "query": [
+                { "key": "fecha_desde", "value": "2024-11-01", "description": "Formato YYYY-MM-DD" },
+                { "key": "fecha_hasta", "value": "2024-11-30", "description": "Formato YYYY-MM-DD" },
+                { "key": "tipo_comprobante", "value": "FACTURA", "description": "FACTURA | NOTA_CREDITO | NOTA_DEBITO | AUTOFACTURA | OTRO" },
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "50" }
+              ]
+            },
+            "description": "Facturas de noviembre 2024, 50 por página."
+          }
+        },
+        {
+          "name": "Listar comprobantes por RUC vendedor",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/tenants/{{tenant_id}}/comprobantes?ruc_vendedor=80012345-6",
+              "host": ["{{base_url}}"],
+              "path": ["tenants", "{{tenant_id}}", "comprobantes"],
+              "query": [
+                { "key": "ruc_vendedor", "value": "80012345-6" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Listar comprobantes sin XML descargado",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/tenants/{{tenant_id}}/comprobantes?xml_descargado=false",
+              "host": ["{{base_url}}"],
+              "path": ["tenants", "{{tenant_id}}", "comprobantes"],
+              "query": [
+                { "key": "xml_descargado", "value": "false", "description": "Solo comprobantes sin XML aún" }
+              ]
+            },
+            "description": "Útil para verificar cuántos comprobantes faltan por descargar XML."
+          }
+        },
+        {
+          "name": "Listar comprobantes con XML descargado",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/tenants/{{tenant_id}}/comprobantes?xml_descargado=true",
+              "host": ["{{base_url}}"],
+              "path": ["tenants", "{{tenant_id}}", "comprobantes"],
+              "query": [
+                { "key": "xml_descargado", "value": "true" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Listar notas de crédito",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/tenants/{{tenant_id}}/comprobantes?tipo_comprobante=NOTA_CREDITO",
+              "host": ["{{base_url}}"],
+              "path": ["tenants", "{{tenant_id}}", "comprobantes"],
+              "query": [
+                { "key": "tipo_comprobante", "value": "NOTA_CREDITO" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Obtener comprobante por ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.id) {",
+                  "  pm.collectionVariables.set('comprobante_id', res.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/tenants/{{tenant_id}}/comprobantes/{{comprobante_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["tenants", "{{tenant_id}}", "comprobantes", "{{comprobante_id}}"]
+            },
+            "description": "Detalle completo del comprobante. Incluye `xml_contenido` (XML crudo) y `detalles_xml` (JSON parseado del XML SIFEN)."
+          },
+          "response": [
+            {
+              "name": "200 OK — Con XML descargado",
+              "originalRequest": {
+                "method": "GET",
+                "url": { "raw": "{{base_url}}/tenants/{{tenant_id}}/comprobantes/{{comprobante_id}}" }
+              },
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"id\": \"comp-uuid-...\",\n  \"ruc_vendedor\": \"80012345-6\",\n  \"numero_comprobante\": \"001-001-0001234\",\n  \"tipo_comprobante\": \"FACTURA\",\n  \"fecha_emision\": \"2024-11-01\",\n  \"total_operacion\": \"194000\",\n  \"cdc\": \"01800123456001001000000012024110112345678901\",\n  \"xml_url\": \"https://ekuatia.set.gov.py/docs/documento-electronico-xml/018001...\",\n  \"xml_descargado_at\": \"2025-01-15T10:05:00.000Z\",\n  \"detalles_xml\": {\n    \"cdc\": \"01800123456001001000000012024110112345678901\",\n    \"tipoDocumento\": \"1\",\n    \"emisor\": {\n      \"ruc\": \"80012345-6\",\n      \"razonSocial\": \"Empresa XYZ S.A.\"\n    },\n    \"receptor\": {\n      \"ruc\": \"12345678-9\",\n      \"razonSocial\": \"Cliente Final S.A.\"\n    },\n    \"items\": [\n      {\n        \"descripcion\": \"Amoxicilina 500mg\",\n        \"cantidad\": 10,\n        \"precioUnitario\": 15000,\n        \"subtotal\": 150000,\n        \"iva\": 13636,\n        \"tasaIva\": 10\n      }\n    ],\n    \"totales\": {\n      \"total\": 194000,\n      \"ivaTotal\": 17636,\n      \"iva10\": 17636\n    }\n  },\n  \"xml_contenido\": \"<?xml version=\\\"1.0\\\" ...>...</DE>\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Flujos completos",
+      "item": [
+        {
+          "name": "1. Crear tenant",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre_fantasia\": \"Mi Empresa S.A.\",\n  \"ruc\": \"80000001-1\",\n  \"email_contacto\": \"admin@miempresa.com.py\",\n  \"config\": {\n    \"ruc_login\": \"80000001-1\",\n    \"usuario_marangatu\": \"mi_usuario\",\n    \"clave_marangatu\": \"mi_clave\",\n    \"enviar_a_ords_automaticamente\": true,\n    \"frecuencia_sincronizacion_minutos\": 60,\n    \"ords_base_url\": \"https://mi-oracle.com/ords\",\n    \"ords_endpoint_facturas\": \"/api/facturas\",\n    \"ords_tipo_autenticacion\": \"BASIC\",\n    \"ords_usuario\": \"oracle_user\",\n    \"ords_password\": \"oracle_pass\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/tenants",
+              "host": ["{{base_url}}"],
+              "path": ["tenants"]
+            },
+            "description": "Paso 1 del flujo completo. Copiar el `id` retornado a la variable `tenant_id`."
+          }
+        },
+        {
+          "name": "2. Encolar sync manual",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{base_url}}/tenants/{{tenant_id}}/jobs/sync-comprobantes",
+              "host": ["{{base_url}}"],
+              "path": ["tenants", "{{tenant_id}}", "jobs", "sync-comprobantes"]
+            },
+            "description": "Paso 2. El worker procesará este job y synceará comprobantes de Marangatu. Automáticamente encolará DESCARGAR_XML y opcionalmente ENVIAR_A_ORDS."
+          }
+        },
+        {
+          "name": "3. Verificar estado del job",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/jobs?tenant_id={{tenant_id}}&limit=5",
+              "host": ["{{base_url}}"],
+              "path": ["jobs"],
+              "query": [
+                { "key": "tenant_id", "value": "{{tenant_id}}" },
+                { "key": "limit", "value": "5" }
+              ]
+            },
+            "description": "Paso 3. Monitorear el estado de los jobs. Esperar que pasen a DONE."
+          }
+        },
+        {
+          "name": "4. Ver comprobantes sincronizados",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/tenants/{{tenant_id}}/comprobantes?limit=5",
+              "host": ["{{base_url}}"],
+              "path": ["tenants", "{{tenant_id}}", "comprobantes"],
+              "query": [
+                { "key": "limit", "value": "5" }
+              ]
+            },
+            "description": "Paso 4. Ver los comprobantes que el worker descargó de Marangatu."
+          }
+        },
+        {
+          "name": "5. Ver comprobantes con XML completo",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/tenants/{{tenant_id}}/comprobantes?xml_descargado=true&limit=5",
+              "host": ["{{base_url}}"],
+              "path": ["tenants", "{{tenant_id}}", "comprobantes"],
+              "query": [
+                { "key": "xml_descargado", "value": "true" },
+                { "key": "limit", "value": "5" }
+              ]
+            },
+            "description": "Paso 5. Ver comprobantes que ya tienen el XML de eKuatia descargado y parseado."
+          }
+        }
+      ]
+    }
+  ]
+}
