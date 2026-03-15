@@ -23,7 +23,7 @@ function comprobanteToTxtLines(c: Comprobante): string {
 
   const d = c.detalles_xml;
   if (d) {
-    const op = d.operacion ?? { moneda: d.moneda ?? 'PYG', condicionVenta: d.condicionVenta ?? '' };
+    const op = d.operacion ?? { moneda: 'PYG', condicionVenta: '' };
     lines.push(
       ``,
       `OPERACION`,

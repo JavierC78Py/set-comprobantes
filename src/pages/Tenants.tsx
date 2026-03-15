@@ -4,7 +4,6 @@ import {
   Plus,
   Search,
   MoreHorizontal,
-  RefreshCw,
   Play,
   Edit3,
   X,
@@ -12,7 +11,6 @@ import {
   Download,
   Settings,
   CheckCircle2,
-  XCircle,
 } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { Badge } from '../components/ui/Badge';

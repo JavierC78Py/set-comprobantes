@@ -9,22 +9,29 @@ import {
   findTenantWithConfig,
 } from '../../db/repositories/tenant.repository';
 
+// Helper: transform empty strings to undefined so optional validators pass
+const emptyToUndefined = z.literal('').transform(() => undefined);
+
+const optionalEmail = z.string().email().optional().or(emptyToUndefined);
+const optionalUrl = z.string().url().optional().or(emptyToUndefined);
+const optionalString = z.string().optional().or(emptyToUndefined);
+
 const createTenantSchema = z.object({
   nombre_fantasia: z.string().min(1).max(255),
   ruc: z.string().min(3).max(20),
-  email_contacto: z.string().email().optional(),
-  timezone: z.string().optional(),
+  email_contacto: optionalEmail,
+  timezone: optionalString,
   config: z.object({
     ruc_login: z.string().min(3),
     usuario_marangatu: z.string().min(1),
     clave_marangatu: z.string().min(1),
-    marangatu_base_url: z.string().url().optional(),
-    ords_base_url: z.string().url().optional(),
-    ords_endpoint_facturas: z.string().optional(),
+    marangatu_base_url: optionalUrl,
+    ords_base_url: optionalUrl,
+    ords_endpoint_facturas: optionalString,
     ords_tipo_autenticacion: z.enum(['BASIC', 'BEARER', 'NONE']).optional(),
-    ords_usuario: z.string().optional(),
-    ords_password: z.string().optional(),
-    ords_token: z.string().optional(),
+    ords_usuario: optionalString,
+    ords_password: optionalString,
+    ords_token: optionalString,
     enviar_a_ords_automaticamente: z.boolean().optional(),
     frecuencia_sincronizacion_minutos: z.number().int().min(1).optional(),
     extra_config: z.record(z.unknown()).optional(),
@@ -33,20 +40,20 @@ const createTenantSchema = z.object({
 
 const updateTenantSchema = z.object({
   nombre_fantasia: z.string().min(1).max(255).optional(),
-  email_contacto: z.string().email().optional(),
-  timezone: z.string().optional(),
+  email_contacto: optionalEmail,
+  timezone: optionalString,
   activo: z.boolean().optional(),
   config: z.object({
-    ruc_login: z.string().min(3).optional(),
-    usuario_marangatu: z.string().min(1).optional(),
-    clave_marangatu: z.string().min(1).optional(),
-    marangatu_base_url: z.string().url().optional(),
-    ords_base_url: z.string().url().optional(),
-    ords_endpoint_facturas: z.string().optional(),
+    ruc_login: z.string().min(3).optional().or(emptyToUndefined),
+    usuario_marangatu: z.string().min(1).optional().or(emptyToUndefined),
+    clave_marangatu: z.string().min(1).optional().or(emptyToUndefined),
+    marangatu_base_url: optionalUrl,
+    ords_base_url: optionalUrl,
+    ords_endpoint_facturas: optionalString,
     ords_tipo_autenticacion: z.enum(['BASIC', 'BEARER', 'NONE']).optional(),
-    ords_usuario: z.string().optional(),
-    ords_password: z.string().optional(),
-    ords_token: z.string().optional(),
+    ords_usuario: optionalString,
+    ords_password: optionalString,
+    ords_token: optionalString,
     enviar_a_ords_automaticamente: z.boolean().optional(),
     frecuencia_sincronizacion_minutos: z.number().int().min(1).optional(),
     extra_config: z.record(z.unknown()).optional(),

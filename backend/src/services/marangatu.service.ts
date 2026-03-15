@@ -227,7 +227,7 @@ export class MarangatuService {
     tenantConfig: TenantConfig,
     mes: number,
     anio: number
-  ): Promise<Page> {
+  ): Promise<Page | null> {
     const baseUrl = tenantConfig.marangatu_base_url;
 
     logger.debug('Buscando "Gestion De Comprobantes Informativos" en el menú');
@@ -267,10 +267,10 @@ export class MarangatuService {
           return true;
         }
         return false;
-      }).then((clicked: boolean) => {
+      }).then(async (clicked: boolean) => {
         if (!clicked) {
           logger.warn('No se encontró el item del menú, navegando directamente');
-          return page.evaluate((url: string) => { window.open(url, '_blank'); }, gestionUrl);
+          await page.evaluate((url: string) => { window.open(url, '_blank'); }, gestionUrl);
         }
       }),
     ]);
@@ -392,8 +392,31 @@ export class MarangatuService {
     await registroPage.waitForSelector(SELECTORS.registro.btnSiguiente, { visible: true, timeout: config.puppeteer.timeoutMs });
     await registroPage.click(SELECTORS.registro.btnSiguiente);
 
-    logger.debug('Esperando tabla de comprobantes');
-    await registroPage.waitForSelector(SELECTORS.registro.tabla, { visible: true, timeout: config.puppeteer.timeoutMs });
+    logger.debug('Esperando tabla de comprobantes o mensaje sin resultados');
+    const tablaEncontrada = await registroPage.waitForFunction(
+      (tablaSel: string) => {
+        // Verificar si apareció la tabla
+        const tabla = document.querySelector(tablaSel);
+        if (tabla && (tabla as HTMLElement).offsetParent !== null) return 'tabla';
+        // Verificar si hay un mensaje de alerta indicando sin resultados
+        const alertas = Array.from(document.querySelectorAll('.alert, .alert-info, .alert-warning, [class*="alert"]'));
+        const sinResultados = alertas.some((el) => {
+          const text = el.textContent?.toLowerCase() ?? '';
+          return text.includes('no se encontr') || text.includes('sin resultado') || text.includes('no existen') || text.includes('no hay');
+        });
+        if (sinResultados) return 'vacio';
+        return null;
+      },
+      { timeout: config.puppeteer.timeoutMs },
+      SELECTORS.registro.tabla
+    );
+
+    const resultado = await tablaEncontrada.jsonValue();
+    if (resultado === 'vacio') {
+      logger.info('No se encontraron comprobantes para el período', { mes, anio });
+      return null;
+    }
+
     await this.waitForAngular(registroPage, 400);
 
     logger.info('Tabla de comprobantes cargada', { mes, anio });
@@ -577,6 +600,16 @@ export class MarangatuService {
         mes,
         anio
       );
+
+      if (!workingPage) {
+        logger.info('Sin comprobantes para el período, sincronización finalizada con 0 resultados', {
+          tenant_id: tenantId,
+          mes,
+          anio,
+        });
+        return result;
+      }
+
       logger.info('Tabla de comprobantes lista', { tenant_id: tenantId, mes, anio });
 
       let hasMore = true;

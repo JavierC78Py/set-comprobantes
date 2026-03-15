@@ -65,13 +65,6 @@ function JobTypeIcon({ tipo }: { tipo: JobType }) {
   );
 }
 
-const STATUS_FILTERS: { value: string; label: string }[] = [
-  { value: '', label: 'Todos' },
-  { value: 'PENDING', label: 'Pendientes' },
-  { value: 'RUNNING', label: 'En ejecución' },
-  { value: 'DONE', label: 'Completados' },
-  { value: 'FAILED', label: 'Fallidos' },
-];
 
 const TYPE_FILTERS: { value: string; label: string }[] = [
   { value: '', label: 'Todos los tipos' },

@@ -62,13 +62,13 @@ export interface DetallesXmlItem {
   precioUnitario: number;
   descuento: number;
   descuentoPorcentaje?: number;
-  subtotalBruto: number;
+  subtotalBruto?: number;
   subtotal: number;
   afectacionIva?: string;
-  baseGravadaIva: number;
+  baseGravadaIva?: number;
   iva: number;
   tasaIva: number;
-  exento: number;
+  exento?: number;
 }
 
 export interface DetallesXml {
