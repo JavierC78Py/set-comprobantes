@@ -28,7 +28,10 @@ export async function buildServer() {
         version: '1.0.0',
       },
       servers: [
-        { url: `http://localhost:${config.server.port}`, description: 'Local' },
+        { url: `http://localhost:${config.server.port}`, description: 'Desarrollo local' },
+        ...(config.server.nodeEnv === 'production'
+          ? [{ url: `http://${process.env.PUBLIC_HOST || 'localhost'}:${config.server.port}`, description: 'Producción' }]
+          : []),
       ],
       tags: [
         { name: 'tenants', description: 'Gestión de empresas' },

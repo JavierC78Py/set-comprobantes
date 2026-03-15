@@ -78,7 +78,7 @@ export function Sidebar({ current, onNavigate, apiStatus, mockMode }: SidebarPro
             Recursos
           </p>
           <a
-            href="http://localhost:4000/docs"
+            href={`${(import.meta.env.VITE_API_URL as string) || 'http://localhost:4000'}/docs`}
             target="_blank"
             rel="noopener noreferrer"
             className="sidebar-item-inactive w-full text-left flex"
