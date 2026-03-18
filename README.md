@@ -1,4 +1,4 @@
-# SET Comprobantes
+# DNIT Comprobantes
 
 Sistema de automatización de comprobantes fiscales SET Paraguay.
 Descarga comprobantes de Marangatu, descarga XMLs desde eKuatia y los envía a Oracle ORDS.
