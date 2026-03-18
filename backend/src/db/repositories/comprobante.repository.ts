@@ -215,8 +215,10 @@ export async function findPendingOrdsEnvios(
 ): Promise<ComprobanteEnvioOrds[]> {
   return query<ComprobanteEnvioOrds>(
     `SELECT * FROM comprobante_envio_ords
-     WHERE tenant_id = $1 AND estado_envio = 'PENDING'
-     ORDER BY created_at ASC
+     WHERE tenant_id = $1 AND estado_envio IN ('PENDING', 'FAILED')
+     ORDER BY
+       CASE estado_envio WHEN 'PENDING' THEN 0 ELSE 1 END,
+       created_at ASC
      LIMIT $2`,
     [tenantId, limit]
   );

@@ -127,12 +127,12 @@ export async function claimNextPendingJobTransaction(): Promise<Job | null> {
   });
 }
 
-export async function markJobDone(id: string): Promise<void> {
+export async function markJobDone(id: string, result?: Record<string, unknown>): Promise<void> {
   await query(
     `UPDATE jobs
-     SET estado = 'DONE', error_message = NULL
+     SET estado = 'DONE', error_message = NULL, result = $2
      WHERE id = $1`,
-    [id]
+    [id, result ? JSON.stringify(result) : null]
   );
 }
 

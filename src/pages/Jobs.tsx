@@ -185,6 +185,29 @@ function JobRow({ job, tenant, expanded, onToggle, onCancel, cancelling }: JobRo
                   <p className="text-zinc-400">Sin payload</p>
                 )}
               </div>
+              {job.result && Object.keys(job.result).length > 0 && (
+                <div className="lg:col-span-3">
+                  <p className="font-semibold text-zinc-600 mb-2">Resultado</p>
+                  <div className="flex flex-wrap gap-3">
+                    {Object.entries(job.result).map(([key, value]) => {
+                      const label = key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+                      const isError = key.includes('fallido') || key.includes('error');
+                      const isSuccess = key.includes('exitoso') || key.includes('enviado') || key.includes('insertado') || key.includes('actualizado');
+                      const color = isError && Number(value) > 0
+                        ? 'bg-rose-50 text-rose-700 border-rose-200'
+                        : isSuccess && Number(value) > 0
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        : 'bg-zinc-50 text-zinc-700 border-zinc-200';
+                      return (
+                        <div key={key} className={`px-3 py-2 rounded-lg border text-xs font-medium ${color}`}>
+                          <span className="text-zinc-500 font-normal">{label}: </span>
+                          {typeof value === 'string' ? value : String(value)}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
               {job.error_message && (
                 <div className="lg:col-span-3">
                   <div className="flex items-start gap-2 p-3 bg-rose-50 border border-rose-200 rounded-lg">

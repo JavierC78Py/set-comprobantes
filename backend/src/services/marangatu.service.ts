@@ -373,6 +373,34 @@ export class MarangatuService {
     await this.angularSelect(registroPage, SELECTORS.registro.selectMes, String(mes));
     await this.waitForAngular(registroPage, 400);
 
+    // Esperar a que desaparezca el mensaje "Cargando modo de imputacion..." si aparece
+    logger.debug('Verificando si aparece "Cargando modo de imputacion..."');
+    const cargandoVisible = await registroPage.evaluate(() => {
+      const allElements = Array.from(document.querySelectorAll('*'));
+      return allElements.some((el) => {
+        const text = el.textContent?.toLowerCase() ?? '';
+        return text.includes('cargando modo de imputacion') || text.includes('cargando modo de imputación');
+      });
+    });
+
+    if (cargandoVisible) {
+      logger.debug('Mensaje "Cargando modo de imputacion..." detectado, esperando que desaparezca');
+      await registroPage.waitForFunction(
+        () => {
+          const allElements = Array.from(document.querySelectorAll('*'));
+          return !allElements.some((el) => {
+            const node = el as HTMLElement;
+            if (node.offsetParent === null && node.tagName !== 'BODY' && node.tagName !== 'HTML') return false;
+            const text = (node.innerText || node.textContent || '').toLowerCase();
+            return text.includes('cargando modo de imputacion') || text.includes('cargando modo de imputación');
+          });
+        },
+        { timeout: config.puppeteer.timeoutMs }
+      );
+      logger.debug('Mensaje "Cargando modo de imputacion..." desapareció');
+      await this.waitForAngular(registroPage, 600);
+    }
+
     logger.debug('Marcando "Seleccionar comprobantes"');
     await registroPage.waitForFunction(
       (sel: string) => document.querySelector(sel) !== null,

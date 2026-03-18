@@ -70,6 +70,7 @@ export interface Job {
   intentos: number;
   max_intentos: number;
   error_message: string | null;
+  result: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
   last_run_at: string | null;

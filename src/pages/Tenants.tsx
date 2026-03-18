@@ -210,7 +210,11 @@ export function Tenants({
     if (!selectedId) return;
     setXmlLoading(true);
     try {
-      await api.jobs.descargarXml(selectedId, { batch_size: 20 });
+      const result = await api.jobs.descargarXml(selectedId, { batch_size: 20 });
+      if (!result.job_id) {
+        toastError('Sin XMLs pendientes', 'No hay comprobantes con CDC pendientes de descarga XML para esta empresa');
+        return;
+      }
       toastSuccess('Job XML encolado', 'Se descargarán hasta 20 XMLs pendientes');
       setXmlModalOpen(false);
       onNavigate('jobs');

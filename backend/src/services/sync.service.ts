@@ -32,7 +32,7 @@ export class SyncService {
   async ejecutarSyncComprobantes(
     tenantId: string,
     payload: SyncJobPayload = {}
-  ): Promise<void> {
+  ): Promise<Record<string, unknown>> {
     const tenantConfig = await findTenantConfig(tenantId);
     if (!tenantConfig) {
       throw new Error(`Configuración no encontrada para tenant ${tenantId}`);
@@ -76,6 +76,14 @@ export class SyncService {
       // ENVIAR_A_ORDS se encola después de DESCARGAR_XML, no aquí
       // para asegurar que los XMLs estén completos antes del envío
     }
+
+    return {
+      total_paginas: syncResult.total_pages,
+      total_filas: syncResult.total_rows,
+      insertados: syncResult.inserted,
+      actualizados: syncResult.updated,
+      errores: syncResult.errors.length,
+    };
   }
 
   /**
@@ -85,7 +93,7 @@ export class SyncService {
   async ejecutarEnvioOrds(
     tenantId: string,
     payload: EnviarOrdsJobPayload = {}
-  ): Promise<void> {
+  ): Promise<Record<string, unknown>> {
     const tenant = await queryOne<Tenant>(
       'SELECT * FROM tenants WHERE id = $1',
       [tenantId]
@@ -101,7 +109,7 @@ export class SyncService {
       logger.warn('Tenant no tiene ORDS configurado, saltando envío', {
         tenant_id: tenantId,
       });
-      return;
+      return { enviados: 0, fallidos: 0, mensaje: 'ORDS no configurado' };
     }
 
     const result = await this.ordsService.procesarEnviosPendientes(
@@ -115,6 +123,8 @@ export class SyncService {
       tenant_id: tenantId,
       ...result,
     });
+
+    return result as unknown as Record<string, unknown>;
   }
 
   /**
@@ -124,7 +134,7 @@ export class SyncService {
   async ejecutarDescargarXml(
     tenantId: string,
     payload: DescargarXmlJobPayload = {}
-  ): Promise<void> {
+  ): Promise<Record<string, unknown>> {
     const tenantConfig = await findTenantConfig(tenantId);
     if (!tenantConfig) {
       throw new Error(`Configuración no encontrada para tenant ${tenantId}`);
@@ -147,7 +157,7 @@ export class SyncService {
 
     if (pendientes.length === 0) {
       logger.info('No hay XMLs pendientes de descarga', { tenant_id: tenantId });
-      return;
+      return { exitosos: 0, fallidos: 0, mensaje: 'Sin XMLs pendientes' };
     }
 
     logger.info('Iniciando descarga de XMLs', {
@@ -192,6 +202,7 @@ export class SyncService {
       fallidos,
     });
 
+    // Re-encolar DESCARGAR_XML si quedan pendientes
     const restantes = await obtenerPendientesXml(tenantId, 1);
     if (restantes.length > 0) {
       const activeXml = await countActiveJobsForTenant(tenantId, 'DESCARGAR_XML');
@@ -206,15 +217,17 @@ export class SyncService {
           tenant_id: tenantId,
         });
       }
-    } else {
-      // Todos los XMLs descargados — encolar ENVIAR_A_ORDS si está configurado
-      const tenantConfig = await findTenantConfig(tenantId);
-      if (tenantConfig?.enviar_a_ords_automaticamente) {
-        // Marcar comprobantes con XML como pendientes de envío ORDS
+    }
+
+    // Encolar ENVIAR_A_ORDS en cada batch si hay comprobantes con XML listo,
+    // así ORDS se actualiza paulatinamente sin esperar a que terminen todos los XMLs
+    if (exitosos > 0) {
+      const tenantCfg = await findTenantConfig(tenantId);
+      if (tenantCfg?.enviar_a_ords_automaticamente) {
         const comprobantesConXml = await findComprobantesByTenant(
           tenantId,
           { xml_descargado: true },
-          { page: 1, limit: 500 }
+          { page: 1, limit: 5000 }
         );
         const ids = comprobantesConXml.data.map((c) => c.id);
         if (ids.length > 0) {
@@ -228,13 +241,21 @@ export class SyncService {
               payload: { batch_size: 100 } as unknown as Record<string, unknown>,
               next_run_at: new Date(),
             });
-            logger.info('Job ENVIAR_A_ORDS encolado automáticamente (todos los XMLs descargados)', {
+            logger.info('Job ENVIAR_A_ORDS encolado automáticamente post-batch XML', {
               tenant_id: tenantId,
+              comprobantes_listos: ids.length,
+              xml_restantes: restantes.length,
             });
           }
         }
       }
     }
+
+    return {
+      exitosos,
+      fallidos,
+      pendientes_restantes: restantes.length,
+    };
   }
 
   /**
@@ -244,7 +265,7 @@ export class SyncService {
   async ejecutarConsultaComprobantes(
     tenantId: string,
     payload: ConsultaComprobantesJobPayload
-  ): Promise<void> {
+  ): Promise<Record<string, unknown>> {
     const tenantConfig = await findTenantConfig(tenantId);
     if (!tenantConfig) {
       throw new Error(`Configuración no encontrada para tenant ${tenantId}`);
@@ -289,6 +310,13 @@ export class SyncService {
       // ENVIAR_A_ORDS se encola después de DESCARGAR_XML, no aquí
       // para asegurar que los XMLs estén completos antes del envío
     }
+
+    return {
+      total_paginas: consultaResult.total_pages,
+      total_filas: consultaResult.total_rows,
+      insertados: consultaResult.inserted,
+      errores: consultaResult.errors.length,
+    };
   }
 
   /**

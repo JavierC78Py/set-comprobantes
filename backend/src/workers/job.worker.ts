@@ -5,7 +5,7 @@ import { Job, SyncJobPayload, EnviarOrdsJobPayload, DescargarXmlJobPayload, Cons
 
 const syncService = new SyncService();
 
-async function processJob(job: Job): Promise<void> {
+async function processJob(job: Job): Promise<Record<string, unknown> | undefined> {
   logger.info('Procesando job', {
     job_id: job.id,
     tenant_id: job.tenant_id,
@@ -16,23 +16,19 @@ async function processJob(job: Job): Promise<void> {
   switch (job.tipo_job) {
     case 'SYNC_COMPROBANTES': {
       const payload = job.payload as SyncJobPayload;
-      await syncService.ejecutarSyncComprobantes(job.tenant_id, payload);
-      break;
+      return await syncService.ejecutarSyncComprobantes(job.tenant_id, payload);
     }
     case 'ENVIAR_A_ORDS': {
       const payload = job.payload as EnviarOrdsJobPayload;
-      await syncService.ejecutarEnvioOrds(job.tenant_id, payload);
-      break;
+      return await syncService.ejecutarEnvioOrds(job.tenant_id, payload);
     }
     case 'DESCARGAR_XML': {
       const payload = job.payload as DescargarXmlJobPayload;
-      await syncService.ejecutarDescargarXml(job.tenant_id, payload);
-      break;
+      return await syncService.ejecutarDescargarXml(job.tenant_id, payload);
     }
     case 'CONSULTA_COMPROBANTES': {
       const payload = job.payload as unknown as ConsultaComprobantesJobPayload;
-      await syncService.ejecutarConsultaComprobantes(job.tenant_id, payload);
-      break;
+      return await syncService.ejecutarConsultaComprobantes(job.tenant_id, payload);
     }
     default: {
       throw new Error(`Tipo de job desconocido: ${String(job.tipo_job)}`);
@@ -45,8 +41,8 @@ export async function processSingleJob(): Promise<boolean> {
   if (!job) return false;
 
   try {
-    await processJob(job);
-    await markJobDone(job.id);
+    const result = await processJob(job);
+    await markJobDone(job.id, result);
     logger.info('Job completado exitosamente', {
       job_id: job.id,
       tenant_id: job.tenant_id,
