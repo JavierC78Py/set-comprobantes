@@ -403,6 +403,9 @@ Todas se configuran en `backend/.env`.
 - Verificar que `DATABASE_URL` apunta a la misma DB que la API
 - Correr las migraciones: `cd backend && npm run migrate`
 - Revisar logs del worker
+- Verificar si hay jobs atascados en RUNNING: `SELECT id, tipo_job, estado, updated_at FROM jobs WHERE estado = 'RUNNING';`
+  - El worker resetea automáticamente jobs RUNNING → PENDING al detenerse (shutdown graceful)
+  - El scheduler también reinicia jobs RUNNING que llevan más de `STUCK_JOB_TIMEOUT_MINUTES` (default 60 min)
 
 **Puppeteer falla al iniciar**
 - En Linux sin GUI, instalar las dependencias del sistema (ver [Requisitos previos](#dependencias-del-sistema-para-puppeteer-linux-sin-gui))

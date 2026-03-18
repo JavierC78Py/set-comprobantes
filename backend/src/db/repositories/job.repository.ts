@@ -169,6 +169,19 @@ export async function countActiveJobsForTenant(
   return parseInt(rows[0]?.count ?? '0', 10);
 }
 
+export async function resetAllRunningJobs(): Promise<number> {
+  const rows = await query<{ id: string }>(
+    `UPDATE jobs
+     SET estado = 'PENDING',
+         intentos = GREATEST(intentos - 1, 0),
+         next_run_at = NOW(),
+         error_message = 'Job reiniciado: worker detenido durante ejecución'
+     WHERE estado = 'RUNNING'
+     RETURNING id`
+  );
+  return rows.length;
+}
+
 export async function resetStuckRunningJobs(stuckAfterMinutes = 60): Promise<number> {
   const rows = await query<{ id: string }>(
     `UPDATE jobs
