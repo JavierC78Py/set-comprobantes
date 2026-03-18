@@ -1,0 +1,6 @@
+-- Migration: Add CONSULTA_COMPROBANTES job type
+-- Date: 2026-03-17
+
+ALTER TABLE jobs DROP CONSTRAINT IF EXISTS jobs_tipo_job_check;
+ALTER TABLE jobs ADD CONSTRAINT jobs_tipo_job_check
+  CHECK (tipo_job IN ('SYNC_COMPROBANTES', 'ENVIAR_A_ORDS', 'DESCARGAR_XML', 'CONSULTA_COMPROBANTES'));

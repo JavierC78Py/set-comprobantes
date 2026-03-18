@@ -81,12 +81,30 @@ export const api = {
       if (MOCK_MODE) return mockStore.getJob(id);
       return request<{ data: Job }>(`/jobs/${id}`).then((r) => r.data);
     },
+    cancel: (id: string): Promise<void> => {
+      if (MOCK_MODE) return Promise.resolve();
+      return request(`/jobs/${id}/cancel`, { method: 'POST', body: JSON.stringify({}) }).then(() => {});
+    },
     syncComprobantes: (tenantId: string, body?: { mes?: number; anio?: number }): Promise<{ job_id: string; tipo_job: string; estado: string }> => {
       if (MOCK_MODE) return mockStore.syncComprobantes(tenantId, body);
       return request<{ message: string; data: { job_id: string } }>(`/tenants/${tenantId}/jobs/sync-comprobantes`, {
         method: 'POST',
         body: JSON.stringify(body || {}),
       }).then((r) => ({ job_id: r.data.job_id, tipo_job: 'SYNC_COMPROBANTES', estado: 'PENDING' }));
+    },
+    consultaComprobantes: (tenantId: string, body: { fecha_desde: string; fecha_hasta: string; tipo_registro?: string }): Promise<{ job_id: string; tipo_job: string; estado: string }> => {
+      if (MOCK_MODE) return Promise.resolve({ job_id: 'mock-consulta', tipo_job: 'CONSULTA_COMPROBANTES', estado: 'PENDING' });
+      return request<{ message: string; data: { job_id: string } }>(`/tenants/${tenantId}/jobs/consulta-comprobantes`, {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }).then((r) => ({ job_id: r.data.job_id, tipo_job: 'CONSULTA_COMPROBANTES', estado: 'PENDING' }));
+    },
+    enviarOrds: (tenantId: string): Promise<{ job_id: string; tipo_job: string; estado: string }> => {
+      if (MOCK_MODE) return Promise.resolve({ job_id: 'mock-ords', tipo_job: 'ENVIAR_A_ORDS', estado: 'PENDING' });
+      return request<{ message: string; data: { job_id: string } }>(`/tenants/${tenantId}/jobs/enviar-ords`, {
+        method: 'POST',
+        body: JSON.stringify({}),
+      }).then((r) => ({ job_id: r.data.job_id, tipo_job: 'ENVIAR_A_ORDS', estado: 'PENDING' }));
     },
     descargarXml: (tenantId: string, body?: { batch_size?: number; comprobante_id?: string }): Promise<{ job_id: string; tipo_job: string; estado: string }> => {
       if (MOCK_MODE) return mockStore.descargarXml(tenantId, body);

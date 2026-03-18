@@ -22,6 +22,7 @@ import type { Job, Tenant, JobStatus, JobType } from '../types';
 
 interface JobsProps {
   toastError: (title: string, desc?: string) => void;
+  toastSuccess?: (title: string, desc?: string) => void;
 }
 
 function JobStatusBadge({ status }: { status: JobStatus }) {
@@ -53,6 +54,10 @@ function JobTypeIcon({ tipo }: { tipo: JobType }) {
       icon: <Briefcase className="w-3.5 h-3.5 text-amber-600" />,
       bg: 'bg-amber-50',
     },
+    CONSULTA_COMPROBANTES: {
+      icon: <RefreshCw className="w-3.5 h-3.5 text-violet-600" />,
+      bg: 'bg-violet-50',
+    },
   };
   const { icon, bg } = map[tipo] || {
     icon: <Briefcase className="w-3.5 h-3.5 text-zinc-500" />,
@@ -69,6 +74,7 @@ function JobTypeIcon({ tipo }: { tipo: JobType }) {
 const TYPE_FILTERS: { value: string; label: string }[] = [
   { value: '', label: 'Todos los tipos' },
   { value: 'SYNC_COMPROBANTES', label: 'Sincronización' },
+  { value: 'CONSULTA_COMPROBANTES', label: 'Consulta registrados' },
   { value: 'DESCARGAR_XML', label: 'Descarga XML' },
   { value: 'ENVIAR_A_ORDS', label: 'Envío ORDS' },
 ];
@@ -78,9 +84,11 @@ interface JobRowProps {
   tenant?: Tenant;
   expanded: boolean;
   onToggle: () => void;
+  onCancel: (jobId: string) => void;
+  cancelling: boolean;
 }
 
-function JobRow({ job, tenant, expanded, onToggle }: JobRowProps) {
+function JobRow({ job, tenant, expanded, onToggle, onCancel, cancelling }: JobRowProps) {
   const statusIcon = {
     DONE: <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />,
     FAILED: <XCircle className="w-3.5 h-3.5 text-rose-500 flex-shrink-0" />,
@@ -187,6 +195,18 @@ function JobRow({ job, tenant, expanded, onToggle }: JobRowProps) {
                   </div>
                 </div>
               )}
+              {(job.estado === 'PENDING' || job.estado === 'RUNNING') && (
+                <div className="lg:col-span-3 flex justify-end">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onCancel(job.id); }}
+                    disabled={cancelling}
+                    className="btn-sm bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 disabled:opacity-50"
+                  >
+                    <XCircle className="w-3.5 h-3.5" />
+                    {cancelling ? 'Cancelando...' : 'Cancelar job'}
+                  </button>
+                </div>
+              )}
             </div>
           </td>
         </tr>
@@ -204,7 +224,7 @@ function MiniRow({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-export function Jobs({ toastError }: JobsProps) {
+export function Jobs({ toastError, toastSuccess }: JobsProps) {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [loading, setLoading] = useState(true);
@@ -213,6 +233,7 @@ export function Jobs({ toastError }: JobsProps) {
   const [statusFilter, setStatusFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 20;
 
@@ -237,6 +258,19 @@ export function Jobs({ toastError }: JobsProps) {
       setRefreshing(false);
     }
   }, [statusFilter, typeFilter, toastError]);
+
+  const handleCancel = useCallback(async (jobId: string) => {
+    setCancellingId(jobId);
+    try {
+      await api.jobs.cancel(jobId);
+      toastSuccess?.('Job cancelado', 'El job fue marcado como fallido');
+      await load(true);
+    } catch (e: unknown) {
+      toastError('Error al cancelar job', e instanceof Error ? e.message : undefined);
+    } finally {
+      setCancellingId(null);
+    }
+  }, [load, toastError, toastSuccess]);
 
   useEffect(() => {
     load();
@@ -371,6 +405,8 @@ export function Jobs({ toastError }: JobsProps) {
                   tenant={tenants.find((t) => t.id === job.tenant_id)}
                   expanded={expandedId === job.id}
                   onToggle={() => setExpandedId(expandedId === job.id ? null : job.id)}
+                  onCancel={handleCancel}
+                  cancelling={cancellingId === job.id}
                 />
               ))}
             </tbody>

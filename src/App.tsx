@@ -65,7 +65,7 @@ export default function App() {
           />
         )}
         {page === 'jobs' && (
-          <Jobs toastError={error} />
+          <Jobs toastError={error} toastSuccess={success} />
         )}
         {page === 'comprobantes' && (
           <Comprobantes toastError={error} />

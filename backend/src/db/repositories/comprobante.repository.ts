@@ -57,6 +57,56 @@ export async function upsertComprobante(
   return { comprobante, created: rows[0].xmax === '0' };
 }
 
+export async function insertComprobanteIfNotExists(
+  input: UpsertComprobanteInput
+): Promise<{ comprobante: Comprobante | null; created: boolean; skipped: boolean }> {
+  const hash = hashUnico(
+    input.tenant_id,
+    input.ruc_vendedor,
+    input.numero_comprobante,
+    input.fecha_emision
+  );
+
+  const existing = await queryOne<Comprobante>(
+    'SELECT * FROM comprobantes WHERE hash_unico = $1',
+    [hash]
+  );
+
+  if (existing) {
+    return { comprobante: null, created: false, skipped: true };
+  }
+
+  const rows = await query<Comprobante>(
+    `INSERT INTO comprobantes (
+       tenant_id, origen, ruc_vendedor, razon_social_vendedor,
+       cdc, numero_comprobante, tipo_comprobante, fecha_emision,
+       total_operacion, raw_payload, hash_unico
+     )
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+     ON CONFLICT (hash_unico) DO NOTHING
+     RETURNING *`,
+    [
+      input.tenant_id,
+      input.origen,
+      input.ruc_vendedor,
+      input.razon_social_vendedor ?? null,
+      input.cdc ?? null,
+      input.numero_comprobante,
+      input.tipo_comprobante,
+      input.fecha_emision,
+      input.total_operacion,
+      JSON.stringify(input.raw_payload),
+      hash,
+    ]
+  );
+
+  if (!rows[0]) {
+    return { comprobante: null, created: false, skipped: true };
+  }
+
+  return { comprobante: rows[0], created: true, skipped: false };
+}
+
 export async function findComprobantesByTenant(
   tenantId: string,
   filters: ComprobanteFilters,

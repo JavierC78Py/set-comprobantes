@@ -1,6 +1,6 @@
 export type TenantStatus = 'activo' | 'inactivo';
 export type AuthType = 'BASIC' | 'BEARER' | 'NONE';
-export type JobType = 'SYNC_COMPROBANTES' | 'ENVIAR_A_ORDS' | 'DESCARGAR_XML';
+export type JobType = 'SYNC_COMPROBANTES' | 'ENVIAR_A_ORDS' | 'DESCARGAR_XML' | 'CONSULTA_COMPROBANTES';
 export type JobStatus = 'PENDING' | 'RUNNING' | 'DONE' | 'FAILED';
 export type EnvioStatus = 'PENDING' | 'SENT' | 'FAILED';
 export type XmlJobStatus = 'PENDING' | 'RUNNING' | 'DONE' | 'FAILED';
@@ -247,6 +247,12 @@ export interface DescargarXmlJobPayload {
   comprobante_id?: string;
   batch_size?: number;
   solo_pendientes?: boolean;
+}
+
+export interface ConsultaComprobantesJobPayload {
+  fecha_desde: string;  // YYYY-MM-DD
+  fecha_hasta: string;  // YYYY-MM-DD
+  tipo_registro?: string; // default 'COMPRAS'
 }
 
 export interface PaginationParams {

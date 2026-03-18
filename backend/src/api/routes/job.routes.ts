@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { findJobs, findJobById, countActiveJobsForTenant, createJob } from '../../db/repositories/job.repository';
+import { query as dbQuery } from '../../db/connection';
 import { findTenantById } from '../../db/repositories/tenant.repository';
 import { SyncService } from '../../services/sync.service';
 import { enqueueXmlDownloads } from '../../services/ekuatia.service';
@@ -13,6 +14,12 @@ const syncJobSchema = z.object({
 const descargarXmlSchema = z.object({
   batch_size: z.number().int().min(1).max(200).optional(),
   comprobante_id: z.string().uuid().optional(),
+});
+
+const consultaComprobantesSchema = z.object({
+  fecha_desde: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  fecha_hasta: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  tipo_registro: z.enum(['COMPRAS', 'VENTAS']).optional().default('COMPRAS'),
 });
 
 const syncService = new SyncService();
@@ -100,6 +107,68 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
     }
   );
 
+  app.post<{ Params: { id: string } }>(
+    '/tenants/:id/jobs/enviar-ords',
+    async (req, reply) => {
+      const tenant = await findTenantById(req.params.id);
+      if (!tenant) {
+        return reply.status(404).send({ error: 'Tenant no encontrado' });
+      }
+      if (!tenant.activo) {
+        return reply.status(409).send({ error: 'Tenant inactivo' });
+      }
+
+      try {
+        const jobId = await syncService.encolarEnvioOrds(req.params.id);
+        return reply.status(202).send({
+          message: 'Job de envío a ORDS encolado',
+          data: { job_id: jobId },
+        });
+      } catch (err) {
+        const error = err as Error;
+        if (error.message.includes('activo')) {
+          return reply.status(409).send({ error: error.message });
+        }
+        throw err;
+      }
+    }
+  );
+
+  app.post<{ Params: { id: string } }>(
+    '/tenants/:id/jobs/consulta-comprobantes',
+    async (req, reply) => {
+      const tenant = await findTenantById(req.params.id);
+      if (!tenant) {
+        return reply.status(404).send({ error: 'Tenant no encontrado' });
+      }
+      if (!tenant.activo) {
+        return reply.status(409).send({ error: 'Tenant inactivo' });
+      }
+
+      const parsed = consultaComprobantesSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return reply.status(400).send({ error: 'Datos inválidos', details: parsed.error.errors });
+      }
+
+      try {
+        const jobId = await syncService.encolarConsultaComprobantes(
+          req.params.id,
+          parsed.data
+        );
+        return reply.status(202).send({
+          message: 'Job de consulta de comprobantes encolado',
+          data: { job_id: jobId },
+        });
+      } catch (err) {
+        const error = err as Error;
+        if (error.message.includes('activo')) {
+          return reply.status(409).send({ error: error.message });
+        }
+        throw err;
+      }
+    }
+  );
+
   app.get<{
     Querystring: {
       tenant_id?: string;
@@ -118,6 +187,23 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
       offset: offset ? parseInt(offset, 10) : 0,
     });
     return reply.send({ data: jobs, total: jobs.length });
+  });
+
+  app.post<{ Params: { id: string } }>('/jobs/:id/cancel', async (req, reply) => {
+    const job = await findJobById(req.params.id);
+    if (!job) {
+      return reply.status(404).send({ error: 'Job no encontrado' });
+    }
+    if (job.estado !== 'PENDING' && job.estado !== 'RUNNING') {
+      return reply.status(409).send({ error: `No se puede cancelar un job en estado ${job.estado}` });
+    }
+
+    // Forzar estado FAILED directamente, sin lógica de reintentos
+    await dbQuery(
+      `UPDATE jobs SET estado = 'FAILED', error_message = $2, updated_at = NOW() WHERE id = $1`,
+      [req.params.id, 'Cancelado manualmente por el usuario']
+    );
+    return reply.send({ message: 'Job cancelado', data: { job_id: job.id } });
   });
 
   app.get<{ Params: { id: string } }>('/jobs/:id', async (req, reply) => {

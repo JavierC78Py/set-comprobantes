@@ -8,7 +8,7 @@ import { createJob, countActiveJobsForTenant } from '../db/repositories/job.repo
 import { MarangatuService } from './marangatu.service';
 import { OrdsService } from './ords.service';
 import { EkuatiaService, enqueueXmlDownloads, obtenerPendientesXml, guardarXmlDescargado, marcarXmlJobFallido } from './ekuatia.service';
-import { SyncJobPayload, EnviarOrdsJobPayload, DescargarXmlJobPayload } from '../types';
+import { SyncJobPayload, EnviarOrdsJobPayload, DescargarXmlJobPayload, ConsultaComprobantesJobPayload } from '../types';
 import { queryOne } from '../db/connection';
 import { Tenant } from '../types';
 
@@ -72,29 +72,8 @@ export class SyncService {
         }
       }
 
-      if (tenantConfig.enviar_a_ords_automaticamente) {
-        const total = syncResult.inserted + syncResult.updated;
-        const comprobantesNuevos = await findComprobantesByTenant(
-          tenantId,
-          {},
-          { page: 1, limit: total }
-        );
-        const ids = comprobantesNuevos.data.map((c) => c.id);
-        await markEnviosOrdsPendingAfterSync(tenantId, ids);
-
-        const activeOrds = await countActiveJobsForTenant(tenantId, 'ENVIAR_A_ORDS');
-        if (activeOrds === 0) {
-          await createJob({
-            tenant_id: tenantId,
-            tipo_job: 'ENVIAR_A_ORDS',
-            payload: { batch_size: 100 } as unknown as Record<string, unknown>,
-            next_run_at: new Date(),
-          });
-          logger.info('Job ENVIAR_A_ORDS encolado automáticamente post-sync', {
-            tenant_id: tenantId,
-          });
-        }
-      }
+      // ENVIAR_A_ORDS se encola después de DESCARGAR_XML, no aquí
+      // para asegurar que los XMLs estén completos antes del envío
     }
   }
 
@@ -226,7 +205,161 @@ export class SyncService {
           tenant_id: tenantId,
         });
       }
+    } else {
+      // Todos los XMLs descargados — encolar ENVIAR_A_ORDS si está configurado
+      const tenantConfig = await findTenantConfig(tenantId);
+      if (tenantConfig?.enviar_a_ords_automaticamente) {
+        // Marcar comprobantes con XML como pendientes de envío ORDS
+        const comprobantesConXml = await findComprobantesByTenant(
+          tenantId,
+          { xml_descargado: true },
+          { page: 1, limit: 500 }
+        );
+        const ids = comprobantesConXml.data.map((c) => c.id);
+        if (ids.length > 0) {
+          await markEnviosOrdsPendingAfterSync(tenantId, ids);
+
+          const activeOrds = await countActiveJobsForTenant(tenantId, 'ENVIAR_A_ORDS');
+          if (activeOrds === 0) {
+            await createJob({
+              tenant_id: tenantId,
+              tipo_job: 'ENVIAR_A_ORDS',
+              payload: { batch_size: 100 } as unknown as Record<string, unknown>,
+              next_run_at: new Date(),
+            });
+            logger.info('Job ENVIAR_A_ORDS encolado automáticamente (todos los XMLs descargados)', {
+              tenant_id: tenantId,
+            });
+          }
+        }
+      }
     }
+  }
+
+  /**
+   * Ejecuta la consulta de comprobantes registrados para un tenant.
+   * Este método es llamado por el worker cuando procesa un job CONSULTA_COMPROBANTES.
+   */
+  async ejecutarConsultaComprobantes(
+    tenantId: string,
+    payload: ConsultaComprobantesJobPayload
+  ): Promise<void> {
+    const tenantConfig = await findTenantConfig(tenantId);
+    if (!tenantConfig) {
+      throw new Error(`Configuración no encontrada para tenant ${tenantId}`);
+    }
+
+    const consultaResult = await this.marangatuService.consultarComprobantes(
+      tenantId,
+      tenantConfig,
+      {
+        fechaDesde: payload.fecha_desde,
+        fechaHasta: payload.fecha_hasta,
+        tipoRegistro: payload.tipo_registro,
+      }
+    );
+
+    logger.info('Consulta de comprobantes completada', {
+      tenant_id: tenantId,
+      resultado: consultaResult,
+    });
+
+    const hayNuevos = consultaResult.inserted > 0;
+
+    if (hayNuevos) {
+      await enqueueXmlDownloads(tenantId, 200);
+
+      const pendientesXml = await obtenerPendientesXml(tenantId, 1);
+      if (pendientesXml.length > 0) {
+        const activeXml = await countActiveJobsForTenant(tenantId, 'DESCARGAR_XML');
+        if (activeXml === 0) {
+          await createJob({
+            tenant_id: tenantId,
+            tipo_job: 'DESCARGAR_XML',
+            payload: { batch_size: 50 } as unknown as Record<string, unknown>,
+            next_run_at: new Date(),
+          });
+          logger.info('Job DESCARGAR_XML encolado automáticamente post-consulta', {
+            tenant_id: tenantId,
+          });
+        }
+      }
+
+      // ENVIAR_A_ORDS se encola después de DESCARGAR_XML, no aquí
+      // para asegurar que los XMLs estén completos antes del envío
+    }
+  }
+
+  /**
+   * Encola un job de envío a ORDS para un tenant.
+   */
+  async encolarEnvioOrds(
+    tenantId: string,
+    payload: EnviarOrdsJobPayload = {}
+  ): Promise<string> {
+    const active = await countActiveJobsForTenant(tenantId, 'ENVIAR_A_ORDS');
+    if (active > 0) {
+      throw new Error(
+        'Ya existe un job de envío ORDS activo para este tenant. ' +
+        'Espere a que termine antes de encolar otro.'
+      );
+    }
+
+    // Marcar comprobantes con XML descargado como pendientes de envío
+    const comprobantesConXml = await findComprobantesByTenant(
+      tenantId,
+      { xml_descargado: true },
+      { page: 1, limit: 500 }
+    );
+    const ids = comprobantesConXml.data.map((c) => c.id);
+    if (ids.length > 0) {
+      await markEnviosOrdsPendingAfterSync(tenantId, ids);
+    }
+
+    const job = await createJob({
+      tenant_id: tenantId,
+      tipo_job: 'ENVIAR_A_ORDS',
+      payload: payload as Record<string, unknown>,
+      next_run_at: new Date(),
+    });
+
+    logger.info('Job ENVIAR_A_ORDS encolado', {
+      tenant_id: tenantId,
+      job_id: job.id,
+      comprobantes_pendientes: ids.length,
+    });
+
+    return job.id;
+  }
+
+  /**
+   * Encola un job de consulta de comprobantes registrados para un tenant.
+   */
+  async encolarConsultaComprobantes(
+    tenantId: string,
+    payload: ConsultaComprobantesJobPayload
+  ): Promise<string> {
+    const active = await countActiveJobsForTenant(tenantId, 'CONSULTA_COMPROBANTES');
+    if (active > 0) {
+      throw new Error(
+        'Ya existe un job de consulta activo para este tenant. ' +
+        'Espere a que termine antes de encolar otro.'
+      );
+    }
+
+    const job = await createJob({
+      tenant_id: tenantId,
+      tipo_job: 'CONSULTA_COMPROBANTES',
+      payload: payload as unknown as Record<string, unknown>,
+      next_run_at: new Date(),
+    });
+
+    logger.info('Job CONSULTA_COMPROBANTES encolado', {
+      tenant_id: tenantId,
+      job_id: job.id,
+    });
+
+    return job.id;
   }
 
   /**

@@ -1,7 +1,7 @@
 import { claimNextPendingJobTransaction, markJobDone, markJobFailed } from '../db/repositories/job.repository';
 import { SyncService } from '../services/sync.service';
 import { logger } from '../config/logger';
-import { Job, SyncJobPayload, EnviarOrdsJobPayload, DescargarXmlJobPayload } from '../types';
+import { Job, SyncJobPayload, EnviarOrdsJobPayload, DescargarXmlJobPayload, ConsultaComprobantesJobPayload } from '../types';
 
 const syncService = new SyncService();
 
@@ -27,6 +27,11 @@ async function processJob(job: Job): Promise<void> {
     case 'DESCARGAR_XML': {
       const payload = job.payload as DescargarXmlJobPayload;
       await syncService.ejecutarDescargarXml(job.tenant_id, payload);
+      break;
+    }
+    case 'CONSULTA_COMPROBANTES': {
+      const payload = job.payload as unknown as ConsultaComprobantesJobPayload;
+      await syncService.ejecutarConsultaComprobantes(job.tenant_id, payload);
       break;
     }
     default: {

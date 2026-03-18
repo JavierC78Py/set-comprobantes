@@ -11,6 +11,7 @@ import {
   Download,
   Settings,
   CheckCircle2,
+  Send,
 } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { Badge } from '../components/ui/Badge';
@@ -19,6 +20,7 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { PageLoader, Spinner } from '../components/ui/Spinner';
 import { TenantForm, type TenantFormData } from '../components/tenants/TenantForm';
 import { SyncModal } from '../components/tenants/SyncModal';
+import { ConsultaModal } from '../components/tenants/ConsultaModal';
 import { api } from '../lib/api';
 import { formatDateTime, formatRelative } from '../lib/utils';
 import type { Tenant, TenantWithConfig } from '../types';
@@ -52,6 +54,10 @@ export function Tenants({
   const [formLoading, setFormLoading] = useState(false);
   const [syncModalOpen, setSyncModalOpen] = useState(false);
   const [syncLoading, setSyncLoading] = useState(false);
+  const [consultaModalOpen, setConsultaModalOpen] = useState(false);
+  const [consultaLoading, setConsultaLoading] = useState(false);
+  const [ordsModalOpen, setOrdsModalOpen] = useState(false);
+  const [ordsLoading, setOrdsLoading] = useState(false);
   const [xmlModalOpen, setXmlModalOpen] = useState(false);
   const [xmlLoading, setXmlLoading] = useState(false);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
@@ -145,6 +151,36 @@ export function Tenants({
       toastError('Error al encolar sync', e instanceof Error ? e.message : undefined);
     } finally {
       setSyncLoading(false);
+    }
+  };
+
+  const handleConsulta = async (fechaDesde: string, fechaHasta: string) => {
+    if (!selectedId) return;
+    setConsultaLoading(true);
+    try {
+      await api.jobs.consultaComprobantes(selectedId, { fecha_desde: fechaDesde, fecha_hasta: fechaHasta });
+      toastSuccess('Job encolado', 'Se consultarán comprobantes registrados en Marangatu');
+      setConsultaModalOpen(false);
+      onNavigate('jobs');
+    } catch (e: unknown) {
+      toastError('Error al encolar consulta', e instanceof Error ? e.message : undefined);
+    } finally {
+      setConsultaLoading(false);
+    }
+  };
+
+  const handleEnviarOrds = async () => {
+    if (!selectedId) return;
+    setOrdsLoading(true);
+    try {
+      await api.jobs.enviarOrds(selectedId);
+      toastSuccess('Job encolado', 'Se enviarán los comprobantes con XML a ORDS');
+      setOrdsModalOpen(false);
+      onNavigate('jobs');
+    } catch (e: unknown) {
+      toastError('Error al encolar envío ORDS', e instanceof Error ? e.message : undefined);
+    } finally {
+      setOrdsLoading(false);
     }
   };
 
@@ -376,10 +412,22 @@ export function Tenants({
                     <Play className="w-3.5 h-3.5" /> Sincronizar
                   </button>
                   <button
+                    onClick={() => setConsultaModalOpen(true)}
+                    className="btn-md btn-secondary"
+                  >
+                    <Search className="w-3.5 h-3.5" /> Consultar Registrados
+                  </button>
+                  <button
                     onClick={() => setXmlModalOpen(true)}
                     className="btn-md btn-secondary"
                   >
                     <Download className="w-3.5 h-3.5" /> Descargar XML
+                  </button>
+                  <button
+                    onClick={() => setOrdsModalOpen(true)}
+                    className="btn-md btn-secondary"
+                  >
+                    <Send className="w-3.5 h-3.5" /> Enviar a ORDS
                   </button>
                   <button
                     onClick={() => setView('edit')}
@@ -535,6 +583,14 @@ export function Tenants({
         loading={syncLoading}
       />
 
+      <ConsultaModal
+        open={consultaModalOpen}
+        onClose={() => setConsultaModalOpen(false)}
+        onSubmit={handleConsulta}
+        tenantName={activeTenantName}
+        loading={consultaLoading}
+      />
+
       <Modal
         open={xmlModalOpen}
         onClose={() => setXmlModalOpen(false)}
@@ -567,6 +623,41 @@ export function Tenants({
         </p>
         <p className="text-xs text-zinc-400 mt-3">
           Requiere saldo disponible en SolveCaptcha para resolver el reCAPTCHA de eKuatia.
+        </p>
+      </Modal>
+
+      <Modal
+        open={ordsModalOpen}
+        onClose={() => setOrdsModalOpen(false)}
+        title="Enviar a ORDS"
+        description={activeTenantName}
+        size="sm"
+        footer={
+          <>
+            <button
+              onClick={() => setOrdsModalOpen(false)}
+              className="btn-md btn-secondary"
+              disabled={ordsLoading}
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleEnviarOrds}
+              disabled={ordsLoading}
+              className="btn-md btn-primary"
+            >
+              {ordsLoading && <Spinner size="xs" />}
+              Enviar
+            </button>
+          </>
+        }
+      >
+        <p className="text-sm text-zinc-600">
+          Se encolará un job <span className="tag">ENVIAR_A_ORDS</span> que enviará
+          los comprobantes con XML descargado a la API ORDS configurada.
+        </p>
+        <p className="text-xs text-zinc-400 mt-3">
+          Solo se envían comprobantes que ya tengan el XML descargado de eKuatia.
         </p>
       </Modal>
     </div>
