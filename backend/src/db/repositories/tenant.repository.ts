@@ -23,10 +23,13 @@ export interface UpsertTenantConfigInput {
   marangatu_base_url?: string;
   ords_base_url?: string;
   ords_endpoint_facturas?: string;
-  ords_tipo_autenticacion?: 'BASIC' | 'BEARER' | 'NONE';
+  ords_tipo_autenticacion?: 'BASIC' | 'BEARER' | 'NONE' | 'CLIENT_CREDENTIALS';
   ords_usuario?: string;
   ords_password?: string;
   ords_token?: string;
+  ords_client_id?: string;
+  ords_client_secret?: string;
+  ords_token_endpoint?: string;
   enviar_a_ords_automaticamente?: boolean;
   frecuencia_sincronizacion_minutos?: number;
   extra_config?: Record<string, unknown>;
@@ -118,16 +121,18 @@ export async function createTenantConfig(
   const claveEncrypted = encrypt(input.clave_marangatu);
   const passwordEncrypted = input.ords_password ? encrypt(input.ords_password) : null;
   const tokenEncrypted = input.ords_token ? encrypt(input.ords_token) : null;
+  const clientSecretEncrypted = input.ords_client_secret ? encrypt(input.ords_client_secret) : null;
 
   const rows = await query<TenantConfig>(
     `INSERT INTO tenant_config (
        tenant_id, ruc_login, usuario_marangatu, clave_marangatu_encrypted,
        marangatu_base_url, ords_base_url, ords_endpoint_facturas,
        ords_tipo_autenticacion, ords_usuario, ords_password_encrypted,
-       ords_token_encrypted, enviar_a_ords_automaticamente,
+       ords_token_encrypted, ords_client_id, ords_client_secret_encrypted,
+       ords_token_endpoint, enviar_a_ords_automaticamente,
        frecuencia_sincronizacion_minutos, extra_config
      )
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
      RETURNING *`,
     [
       tenantId,
@@ -141,6 +146,9 @@ export async function createTenantConfig(
       input.ords_usuario ?? null,
       passwordEncrypted,
       tokenEncrypted,
+      input.ords_client_id ?? null,
+      clientSecretEncrypted,
+      input.ords_token_endpoint ?? null,
       input.enviar_a_ords_automaticamente ?? false,
       input.frecuencia_sincronizacion_minutos ?? 60,
       JSON.stringify(input.extra_config ?? {}),
@@ -198,6 +206,18 @@ export async function updateTenantConfig(
     sets.push(`ords_token_encrypted = $${i++}`);
     params.push(encrypt(input.ords_token));
   }
+  if (input.ords_client_id !== undefined) {
+    sets.push(`ords_client_id = $${i++}`);
+    params.push(input.ords_client_id);
+  }
+  if (input.ords_client_secret !== undefined) {
+    sets.push(`ords_client_secret_encrypted = $${i++}`);
+    params.push(encrypt(input.ords_client_secret));
+  }
+  if (input.ords_token_endpoint !== undefined) {
+    sets.push(`ords_token_endpoint = $${i++}`);
+    params.push(input.ords_token_endpoint);
+  }
   if (input.enviar_a_ords_automaticamente !== undefined) {
     sets.push(`enviar_a_ords_automaticamente = $${i++}`);
     params.push(input.enviar_a_ords_automaticamente);
@@ -248,6 +268,7 @@ export function decryptTenantConfig(config: TenantConfig): TenantConfig & {
   clave_marangatu: string;
   ords_password?: string;
   ords_token?: string;
+  ords_client_secret?: string;
 } {
   return {
     ...config,
@@ -257,6 +278,9 @@ export function decryptTenantConfig(config: TenantConfig): TenantConfig & {
       : undefined,
     ords_token: config.ords_token_encrypted
       ? decrypt(config.ords_token_encrypted)
+      : undefined,
+    ords_client_secret: config.ords_client_secret_encrypted
+      ? decrypt(config.ords_client_secret_encrypted)
       : undefined,
   };
 }

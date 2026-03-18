@@ -2,6 +2,7 @@ import { logger } from '../config/logger';
 import { findTenantConfig } from '../db/repositories/tenant.repository';
 import {
   markEnviosOrdsPendingAfterSync,
+  resetEnviosOrdsForReenvio,
   findComprobantesByTenant,
 } from '../db/repositories/comprobante.repository';
 import { createJob, countActiveJobsForTenant } from '../db/repositories/job.repository';
@@ -295,7 +296,11 @@ export class SyncService {
    */
   async encolarEnvioOrds(
     tenantId: string,
-    payload: EnviarOrdsJobPayload = {}
+    payload: EnviarOrdsJobPayload & {
+      fecha_desde?: string;
+      fecha_hasta?: string;
+      forzar_reenvio?: boolean;
+    } = {}
   ): Promise<string> {
     const active = await countActiveJobsForTenant(tenantId, 'ENVIAR_A_ORDS');
     if (active > 0) {
@@ -305,11 +310,32 @@ export class SyncService {
       );
     }
 
+    // Si forzar_reenvio, resetear envíos existentes (SENT/FAILED → PENDING)
+    if (payload.forzar_reenvio) {
+      const reseteados = await resetEnviosOrdsForReenvio(
+        tenantId,
+        payload.fecha_desde,
+        payload.fecha_hasta
+      );
+      logger.info('Envíos ORDS reseteados para reenvío', {
+        tenant_id: tenantId,
+        reseteados,
+        fecha_desde: payload.fecha_desde,
+        fecha_hasta: payload.fecha_hasta,
+      });
+    }
+
     // Marcar comprobantes con XML descargado como pendientes de envío
+    const filters: { xml_descargado: boolean; fecha_desde?: string; fecha_hasta?: string } = {
+      xml_descargado: true,
+    };
+    if (payload.fecha_desde) filters.fecha_desde = payload.fecha_desde;
+    if (payload.fecha_hasta) filters.fecha_hasta = payload.fecha_hasta;
+
     const comprobantesConXml = await findComprobantesByTenant(
       tenantId,
-      { xml_descargado: true },
-      { page: 1, limit: 500 }
+      filters,
+      { page: 1, limit: 5000 }
     );
     const ids = comprobantesConXml.data.map((c) => c.id);
     if (ids.length > 0) {
@@ -327,6 +353,7 @@ export class SyncService {
       tenant_id: tenantId,
       job_id: job.id,
       comprobantes_pendientes: ids.length,
+      forzar_reenvio: payload.forzar_reenvio ?? false,
     });
 
     return job.id;

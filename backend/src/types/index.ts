@@ -1,5 +1,5 @@
 export type TenantStatus = 'activo' | 'inactivo';
-export type AuthType = 'BASIC' | 'BEARER' | 'NONE';
+export type AuthType = 'BASIC' | 'BEARER' | 'NONE' | 'CLIENT_CREDENTIALS';
 export type JobType = 'SYNC_COMPROBANTES' | 'ENVIAR_A_ORDS' | 'DESCARGAR_XML' | 'CONSULTA_COMPROBANTES';
 export type JobStatus = 'PENDING' | 'RUNNING' | 'DONE' | 'FAILED' | 'CANCELLED';
 export type EnvioStatus = 'PENDING' | 'SENT' | 'FAILED';
@@ -31,6 +31,9 @@ export interface TenantConfig {
   ords_usuario: string | null;
   ords_password_encrypted: string | null;
   ords_token_encrypted: string | null;
+  ords_client_id: string | null;
+  ords_client_secret_encrypted: string | null;
+  ords_token_endpoint: string | null;
   enviar_a_ords_automaticamente: boolean;
   frecuencia_sincronizacion_minutos: number;
   created_at: Date;

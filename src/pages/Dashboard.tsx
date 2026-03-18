@@ -108,7 +108,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
         comprobantesConXml: 0,
         comprobantesSinXml: 0,
       });
-    } catch (_) {
+    } catch { /* ignore */
     } finally {
       setLoading(false);
       setRefreshing(false);

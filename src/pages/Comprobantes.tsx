@@ -13,6 +13,9 @@ import {
   Circle,
   FileJson,
   FileType2,
+  Send,
+  AlertCircle,
+  Clock,
 } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { Badge } from '../components/ui/Badge';
@@ -337,6 +340,7 @@ export function Comprobantes({ toastError }: ComprobantesProps) {
                 <th className="table-th">Fecha emisión</th>
                 <th className="table-th text-right">Total</th>
                 <th className="table-th">XML</th>
+                <th className="table-th">ORDS</th>
               </tr>
             </thead>
             <tbody>
@@ -392,6 +396,29 @@ export function Comprobantes({ toastError }: ComprobantesProps) {
                       <span className="flex items-center gap-1 text-zinc-300">
                         <X className="w-3.5 h-3.5" />
                         <span className="text-xs">Sin CDC</span>
+                      </span>
+                    )}
+                  </td>
+                  <td className="table-td">
+                    {c.estado_envio_ords === 'SENT' ? (
+                      <span className="flex items-center gap-1 text-emerald-600">
+                        <Send className="w-3.5 h-3.5" />
+                        <span className="text-xs">Enviado</span>
+                      </span>
+                    ) : c.estado_envio_ords === 'PENDING' ? (
+                      <span className="flex items-center gap-1 text-amber-500">
+                        <Clock className="w-3.5 h-3.5" />
+                        <span className="text-xs">Pendiente</span>
+                      </span>
+                    ) : c.estado_envio_ords === 'FAILED' ? (
+                      <span className="flex items-center gap-1 text-rose-500">
+                        <AlertCircle className="w-3.5 h-3.5" />
+                        <span className="text-xs">Fallido</span>
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1 text-zinc-300">
+                        <Circle className="w-3.5 h-3.5" />
+                        <span className="text-xs">—</span>
                       </span>
                     )}
                   </td>

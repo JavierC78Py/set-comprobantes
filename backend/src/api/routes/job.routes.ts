@@ -16,6 +16,12 @@ const descargarXmlSchema = z.object({
   comprobante_id: z.string().uuid().optional(),
 });
 
+const enviarOrdsSchema = z.object({
+  fecha_desde: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  fecha_hasta: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  forzar_reenvio: z.boolean().optional().default(false),
+});
+
 const consultaComprobantesSchema = z.object({
   fecha_desde: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   fecha_hasta: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -122,8 +128,17 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
         return reply.status(409).send({ error: 'Tenant inactivo' });
       }
 
+      const parsed = enviarOrdsSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return reply.status(400).send({ error: 'Datos inválidos', details: parsed.error.errors });
+      }
+
       try {
-        const jobId = await syncService.encolarEnvioOrds(req.params.id);
+        const jobId = await syncService.encolarEnvioOrds(req.params.id, {
+          fecha_desde: parsed.data.fecha_desde,
+          fecha_hasta: parsed.data.fecha_hasta,
+          forzar_reenvio: parsed.data.forzar_reenvio,
+        });
         return reply.status(202).send({
           message: 'Job de envío a ORDS encolado',
           data: { job_id: jobId },
@@ -183,13 +198,16 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
     };
   }>('/jobs', async (req, reply) => {
     const { tenant_id, tipo_job, estado, limit, offset } = req.query;
-    const jobs = await findJobs({
+    let jobs = await findJobs({
       tenant_id,
       tipo_job: tipo_job as 'SYNC_COMPROBANTES' | 'ENVIAR_A_ORDS' | undefined,
       estado: estado as 'PENDING' | 'RUNNING' | 'DONE' | 'FAILED' | undefined,
       limit: limit ? parseInt(limit, 10) : 50,
       offset: offset ? parseInt(offset, 10) : 0,
     });
+    if (req.allowedTenants) {
+      jobs = jobs.filter((j) => req.allowedTenants!.includes(j.tenant_id));
+    }
     return reply.send({ data: jobs, total: jobs.length });
   });
 

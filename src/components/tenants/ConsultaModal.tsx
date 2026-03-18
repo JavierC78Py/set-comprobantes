@@ -32,7 +32,7 @@ export function ConsultaModal({ open, onClose, onSubmit, tenantName, loading }: 
     <Modal
       open={open}
       onClose={onClose}
-      title="Consultar comprobantes registrados"
+      title="Sincronizar periodo específico"
       description={tenantName}
       size="sm"
       footer={

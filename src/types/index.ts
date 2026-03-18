@@ -1,5 +1,25 @@
 export type TenantStatus = 'activo' | 'inactivo';
-export type AuthType = 'BASIC' | 'BEARER' | 'NONE';
+export type AuthType = 'BASIC' | 'BEARER' | 'NONE' | 'CLIENT_CREDENTIALS';
+export type UserRole = 'ADMIN' | 'USER';
+
+export interface AuthUser {
+  id: string;
+  username: string;
+  nombre: string;
+  rol: UserRole;
+  tenant_ids: string[] | null;
+}
+
+export interface UserRecord {
+  id: string;
+  username: string;
+  nombre: string;
+  rol: UserRole;
+  activo: boolean;
+  tenant_ids: string[];
+  created_at: string;
+  updated_at: string;
+}
 export type JobType = 'SYNC_COMPROBANTES' | 'ENVIAR_A_ORDS' | 'DESCARGAR_XML' | 'CONSULTA_COMPROBANTES';
 export type JobStatus = 'PENDING' | 'RUNNING' | 'DONE' | 'FAILED' | 'CANCELLED';
 export type EnvioStatus = 'PENDING' | 'SENT' | 'FAILED';
@@ -28,6 +48,8 @@ export interface TenantConfig {
   ords_endpoint_facturas: string | null;
   ords_tipo_autenticacion: AuthType;
   ords_usuario: string | null;
+  ords_client_id: string | null;
+  ords_token_endpoint: string | null;
   enviar_a_ords_automaticamente: boolean;
   frecuencia_sincronizacion_minutos: number;
   extra_config: Record<string, unknown>;
@@ -189,6 +211,7 @@ export interface Comprobante {
   xml_url: string | null;
   xml_descargado_at: string | null;
   detalles_xml: DetallesXml | null;
+  estado_envio_ords: 'PENDING' | 'SENT' | 'FAILED' | null;
   created_at: string;
   updated_at: string;
 }

@@ -609,8 +609,8 @@ export const MOCK_COMPROBANTES: Comprobante[] = [
 ];
 
 let _tenants = [...MOCK_TENANTS];
-let _tenantsWithConfig = { ...MOCK_TENANTS_WITH_CONFIG };
-let _jobs = [...MOCK_JOBS];
+const _tenantsWithConfig = { ...MOCK_TENANTS_WITH_CONFIG };
+const _jobs = [...MOCK_JOBS];
 
 function delay(ms = 400): Promise<void> {
   return new Promise((res) => setTimeout(res, ms));

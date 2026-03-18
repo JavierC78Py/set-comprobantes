@@ -5,8 +5,12 @@ import { Dashboard } from './pages/Dashboard';
 import { Tenants } from './pages/Tenants';
 import { Jobs } from './pages/Jobs';
 import { Comprobantes } from './pages/Comprobantes';
+import { Users } from './pages/Users';
+import { Login } from './pages/Login';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { useToast } from './hooks/useToast';
 import { api, MOCK_MODE } from './lib/api';
+import { PageLoader } from './components/ui/Spinner';
 import type { Page } from './components/layout/Sidebar';
 
 interface NavParams {
@@ -14,7 +18,8 @@ interface NavParams {
   action?: string;
 }
 
-export default function App() {
+function AuthenticatedApp() {
+  const { user, isAdmin, logout } = useAuth();
   const [page, setPage] = useState<Page>('dashboard');
   const [navParams, setNavParams] = useState<NavParams>({});
   const [apiStatus, setApiStatus] = useState<'ok' | 'error' | 'checking'>('checking');
@@ -40,9 +45,13 @@ export default function App() {
   }, [checkApi]);
 
   const navigate = useCallback((p: Page, params?: Record<string, string>) => {
+    // Prevent non-admin from accessing admin pages
+    if (!isAdmin && (p === 'tenants' || p === 'users')) {
+      p = 'dashboard';
+    }
     setPage(p);
     setNavParams(params || {});
-  }, []);
+  }, [isAdmin]);
 
   return (
     <>
@@ -51,11 +60,18 @@ export default function App() {
           MODO DEMO — datos de ejemplo en memoria, no conectado al backend
         </div>
       )}
-      <Shell current={page} onNavigate={navigate} apiStatus={apiStatus} mockMode={MOCK_MODE}>
+      <Shell
+        current={page}
+        onNavigate={navigate}
+        apiStatus={apiStatus}
+        mockMode={MOCK_MODE}
+        user={user}
+        onLogout={logout}
+      >
         {page === 'dashboard' && (
           <Dashboard onNavigate={navigate} />
         )}
-        {page === 'tenants' && (
+        {page === 'tenants' && isAdmin && (
           <Tenants
             onNavigate={navigate}
             toastSuccess={success}
@@ -70,8 +86,37 @@ export default function App() {
         {page === 'comprobantes' && (
           <Comprobantes toastError={error} />
         )}
+        {page === 'users' && isAdmin && (
+          <Users toastSuccess={success} toastError={error} />
+        )}
       </Shell>
       <ToastContainer toasts={toasts} onRemove={remove} />
     </>
   );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppRouter />
+    </AuthProvider>
+  );
+}
+
+function AppRouter() {
+  const { isAuthenticated, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-zinc-50">
+        <PageLoader />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Login />;
+  }
+
+  return <AuthenticatedApp />;
 }

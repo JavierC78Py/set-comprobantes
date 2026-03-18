@@ -28,10 +28,13 @@ const createTenantSchema = z.object({
     marangatu_base_url: optionalUrl,
     ords_base_url: optionalUrl,
     ords_endpoint_facturas: optionalString,
-    ords_tipo_autenticacion: z.enum(['BASIC', 'BEARER', 'NONE']).optional(),
+    ords_tipo_autenticacion: z.enum(['BASIC', 'BEARER', 'NONE', 'CLIENT_CREDENTIALS']).optional(),
     ords_usuario: optionalString,
     ords_password: optionalString,
     ords_token: optionalString,
+    ords_client_id: optionalString,
+    ords_client_secret: optionalString,
+    ords_token_endpoint: optionalUrl,
     enviar_a_ords_automaticamente: z.boolean().optional(),
     frecuencia_sincronizacion_minutos: z.number().int().min(1).optional(),
     extra_config: z.record(z.unknown()).optional(),
@@ -50,10 +53,13 @@ const updateTenantSchema = z.object({
     marangatu_base_url: optionalUrl,
     ords_base_url: optionalUrl,
     ords_endpoint_facturas: optionalString,
-    ords_tipo_autenticacion: z.enum(['BASIC', 'BEARER', 'NONE']).optional(),
+    ords_tipo_autenticacion: z.enum(['BASIC', 'BEARER', 'NONE', 'CLIENT_CREDENTIALS']).optional(),
     ords_usuario: optionalString,
     ords_password: optionalString,
     ords_token: optionalString,
+    ords_client_id: optionalString,
+    ords_client_secret: optionalString,
+    ords_token_endpoint: optionalUrl,
     enviar_a_ords_automaticamente: z.boolean().optional(),
     frecuencia_sincronizacion_minutos: z.number().int().min(1).optional(),
     extra_config: z.record(z.unknown()).optional(),
@@ -61,8 +67,11 @@ const updateTenantSchema = z.object({
 });
 
 export async function tenantRoutes(app: FastifyInstance): Promise<void> {
-  app.get('/tenants', async (_req, reply) => {
-    const tenants = await findAllTenants();
+  app.get('/tenants', async (req, reply) => {
+    let tenants = await findAllTenants();
+    if (req.allowedTenants) {
+      tenants = tenants.filter((t) => req.allowedTenants!.includes(t.id));
+    }
     return reply.send({ data: tenants, total: tenants.length });
   });
 
@@ -77,6 +86,7 @@ export async function tenantRoutes(app: FastifyInstance): Promise<void> {
       clave_marangatu_encrypted: undefined,
       ords_password_encrypted: undefined,
       ords_token_encrypted: undefined,
+      ords_client_secret_encrypted: undefined,
     } : null;
     return reply.send({ data: { ...tenantData, config: safeConfig } });
   });
@@ -107,6 +117,9 @@ export async function tenantRoutes(app: FastifyInstance): Promise<void> {
         ords_usuario: configInput.ords_usuario,
         ords_password: configInput.ords_password,
         ords_token: configInput.ords_token,
+        ords_client_id: configInput.ords_client_id,
+        ords_client_secret: configInput.ords_client_secret,
+        ords_token_endpoint: configInput.ords_token_endpoint,
         enviar_a_ords_automaticamente: configInput.enviar_a_ords_automaticamente,
         frecuencia_sincronizacion_minutos: configInput.frecuencia_sincronizacion_minutos,
         extra_config: configInput.extra_config,
@@ -142,6 +155,9 @@ export async function tenantRoutes(app: FastifyInstance): Promise<void> {
         ords_usuario: configInput.ords_usuario,
         ords_password: configInput.ords_password,
         ords_token: configInput.ords_token,
+        ords_client_id: configInput.ords_client_id,
+        ords_client_secret: configInput.ords_client_secret,
+        ords_token_endpoint: configInput.ords_token_endpoint,
         enviar_a_ords_automaticamente: configInput.enviar_a_ords_automaticamente,
         frecuencia_sincronizacion_minutos: configInput.frecuencia_sincronizacion_minutos,
         extra_config: configInput.extra_config,

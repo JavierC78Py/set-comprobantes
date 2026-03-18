@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import {
   findComprobantesByTenant,
   findComprobanteById,
+  getTenantComprobanteStats,
 } from '../../db/repositories/comprobante.repository';
 import { findTenantById } from '../../db/repositories/tenant.repository';
 import { Comprobante, TipoComprobante } from '../../types';
@@ -105,6 +106,18 @@ function comprobanteToTxtLines(c: Comprobante): string {
 }
 
 export async function comprobanteRoutes(app: FastifyInstance): Promise<void> {
+  app.get<{ Params: { id: string } }>(
+    '/tenants/:id/comprobantes/stats',
+    async (req, reply) => {
+      const tenant = await findTenantById(req.params.id);
+      if (!tenant) {
+        return reply.status(404).send({ error: 'Tenant no encontrado' });
+      }
+      const stats = await getTenantComprobanteStats(req.params.id);
+      return reply.send({ data: stats });
+    }
+  );
+
   app.get<{
     Params: { id: string };
     Querystring: {

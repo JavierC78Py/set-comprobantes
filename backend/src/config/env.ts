@@ -42,6 +42,8 @@ export const config = {
   },
   security: {
     encryptionKey: requireEnv('ENCRYPTION_KEY'),
+    jwtSecret: optionalEnv('JWT_SECRET', 'set-comprobantes-jwt-secret-change-in-production'),
+    jwtExpiresIn: optionalEnv('JWT_EXPIRES_IN', '8h'),
   },
   worker: {
     pollIntervalMs: optionalEnvInt('WORKER_POLL_INTERVAL_MS', 5000),

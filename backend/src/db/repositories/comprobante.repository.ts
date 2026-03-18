@@ -53,6 +53,7 @@ export async function upsertComprobante(
   );
 
   if (!rows[0]) throw new Error('Error en upsert de comprobante');
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { xmax: _xmax, ...comprobante } = rows[0];
   return { comprobante, created: rows[0].xmax === '0' };
 }
@@ -112,36 +113,36 @@ export async function findComprobantesByTenant(
   filters: ComprobanteFilters,
   pagination: PaginationParams
 ): Promise<{ data: Comprobante[]; total: number }> {
-  const conditions: string[] = ['tenant_id = $1'];
+  const conditions: string[] = ['c.tenant_id = $1'];
   const params: unknown[] = [tenantId];
   let i = 2;
 
   if (filters.fecha_desde) {
-    conditions.push(`fecha_emision >= $${i++}`);
+    conditions.push(`c.fecha_emision >= $${i++}`);
     params.push(filters.fecha_desde);
   }
   if (filters.fecha_hasta) {
-    conditions.push(`fecha_emision <= $${i++}`);
+    conditions.push(`c.fecha_emision <= $${i++}`);
     params.push(filters.fecha_hasta);
   }
   if (filters.tipo_comprobante) {
-    conditions.push(`tipo_comprobante = $${i++}`);
+    conditions.push(`c.tipo_comprobante = $${i++}`);
     params.push(filters.tipo_comprobante);
   }
   if (filters.ruc_vendedor) {
-    conditions.push(`ruc_vendedor = $${i++}`);
+    conditions.push(`c.ruc_vendedor = $${i++}`);
     params.push(filters.ruc_vendedor);
   }
   if (filters.xml_descargado === true) {
-    conditions.push(`xml_descargado_at IS NOT NULL`);
+    conditions.push(`c.xml_descargado_at IS NOT NULL`);
   } else if (filters.xml_descargado === false) {
-    conditions.push(`xml_descargado_at IS NULL`);
+    conditions.push(`c.xml_descargado_at IS NULL`);
   }
 
   const where = `WHERE ${conditions.join(' AND ')}`;
 
   const countRows = await query<{ count: string }>(
-    `SELECT COUNT(*) as count FROM comprobantes ${where}`,
+    `SELECT COUNT(*) as count FROM comprobantes c ${where}`,
     params
   );
   const total = parseInt(countRows[0]?.count ?? '0', 10);
@@ -150,13 +151,52 @@ export async function findComprobantesByTenant(
   const offset = (pagination.page - 1) * pagination.limit;
 
   const data = await query<Comprobante>(
-    `SELECT * FROM comprobantes ${where}
-     ORDER BY fecha_emision DESC
+    `SELECT c.*, eo.estado_envio AS estado_envio_ords
+     FROM comprobantes c
+     LEFT JOIN comprobante_envio_ords eo ON eo.comprobante_id = c.id AND eo.tenant_id = c.tenant_id
+     ${where}
+     ORDER BY c.fecha_emision DESC
      LIMIT $${i++} OFFSET $${i++}`,
     [...params, limit, offset]
   );
 
   return { data, total };
+}
+
+export async function getTenantComprobanteStats(tenantId: string): Promise<{
+  total: number;
+  con_xml: number;
+  enviados_ords: number;
+  pendientes_ords: number;
+  fallidos_ords: number;
+}> {
+  const rows = await query<{
+    total: string;
+    con_xml: string;
+    enviados_ords: string;
+    pendientes_ords: string;
+    fallidos_ords: string;
+  }>(
+    `SELECT
+       COUNT(*) AS total,
+       COUNT(c.xml_descargado_at) AS con_xml,
+       COUNT(CASE WHEN eo.estado_envio = 'SENT' THEN 1 END) AS enviados_ords,
+       COUNT(CASE WHEN eo.estado_envio = 'PENDING' THEN 1 END) AS pendientes_ords,
+       COUNT(CASE WHEN eo.estado_envio = 'FAILED' THEN 1 END) AS fallidos_ords
+     FROM comprobantes c
+     LEFT JOIN comprobante_envio_ords eo ON eo.comprobante_id = c.id AND eo.tenant_id = c.tenant_id
+     WHERE c.tenant_id = $1`,
+    [tenantId]
+  );
+
+  const r = rows[0];
+  return {
+    total: parseInt(r?.total ?? '0', 10),
+    con_xml: parseInt(r?.con_xml ?? '0', 10),
+    enviados_ords: parseInt(r?.enviados_ords ?? '0', 10),
+    pendientes_ords: parseInt(r?.pendientes_ords ?? '0', 10),
+    fallidos_ords: parseInt(r?.fallidos_ords ?? '0', 10),
+  };
 }
 
 export async function findComprobanteById(
@@ -233,6 +273,41 @@ export async function updateEnvioOrdsFailed(
      WHERE id = $1`,
     [id, errorMessage]
   );
+}
+
+export async function resetEnviosOrdsForReenvio(
+  tenantId: string,
+  fechaDesde?: string,
+  fechaHasta?: string
+): Promise<number> {
+  const conditions: string[] = ['eo.tenant_id = $1'];
+  const params: unknown[] = [tenantId];
+  let i = 2;
+
+  if (fechaDesde) {
+    conditions.push(`c.fecha_emision >= $${i++}`);
+    params.push(fechaDesde);
+  }
+  if (fechaHasta) {
+    conditions.push(`c.fecha_emision <= $${i++}`);
+    params.push(fechaHasta);
+  }
+
+  const where = conditions.join(' AND ');
+
+  const result = await query<{ count: string }>(
+    `WITH updated AS (
+       UPDATE comprobante_envio_ords eo
+       SET estado_envio = 'PENDING', intentos = 0, error_message = NULL
+       FROM comprobantes c
+       WHERE eo.comprobante_id = c.id AND ${where}
+       RETURNING eo.id
+     )
+     SELECT COUNT(*) as count FROM updated`,
+    params
+  );
+
+  return parseInt(result[0]?.count ?? '0', 10);
 }
 
 export async function markEnviosOrdsPendingAfterSync(

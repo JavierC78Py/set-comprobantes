@@ -27,6 +27,9 @@ export interface TenantFormData {
     ords_usuario: string;
     ords_password: string;
     ords_token: string;
+    ords_client_id: string;
+    ords_client_secret: string;
+    ords_token_endpoint: string;
   };
 }
 
@@ -124,6 +127,9 @@ export function TenantForm({ initialData, onSubmit, loading }: TenantFormProps) 
       ords_usuario: initialData?.config?.ords_usuario || '',
       ords_password: '',
       ords_token: '',
+      ords_client_id: initialData?.config?.ords_client_id || '',
+      ords_client_secret: '',
+      ords_token_endpoint: initialData?.config?.ords_token_endpoint || '',
     },
   });
 
@@ -313,6 +319,7 @@ export function TenantForm({ initialData, onSubmit, loading }: TenantFormProps) 
                 <option value="NONE">Sin autenticación</option>
                 <option value="BASIC">Basic Auth</option>
                 <option value="BEARER">Bearer Token</option>
+                <option value="CLIENT_CREDENTIALS">OAuth2 Client Credentials</option>
               </select>
             </Field>
 
@@ -344,6 +351,38 @@ export function TenantForm({ initialData, onSubmit, loading }: TenantFormProps) 
                   placeholder={initialData ? '(sin cambios)' : 'eyJhbGci...'}
                 />
               </Field>
+            )}
+
+            {form.config.ords_tipo_autenticacion === 'CLIENT_CREDENTIALS' && (
+              <>
+                <div className="text-xs text-zinc-500 p-3 bg-amber-50 rounded-lg border border-amber-200">
+                  OAuth2 Client Credentials: la app obtiene y renueva el token automáticamente
+                  usando el client_id y client_secret configurados en Oracle ORDS.
+                </div>
+                <Field label="Token Endpoint URL" hint="URL donde se solicita el access_token (ej: .../oauth/token)">
+                  <input
+                    className="input font-mono text-xs"
+                    value={form.config.ords_token_endpoint}
+                    onChange={(e) => setConfig('ords_token_endpoint', e.target.value)}
+                    placeholder="https://abc123.adb.us-ashburn-1.oraclecloudapps.com/ords/schema/oauth/token"
+                  />
+                </Field>
+                <Field label="Client ID">
+                  <input
+                    className="input font-mono text-xs"
+                    value={form.config.ords_client_id}
+                    onChange={(e) => setConfig('ords_client_id', e.target.value)}
+                    placeholder="AbCdEf123..."
+                  />
+                </Field>
+                <Field label={initialData ? 'Client Secret (dejar vacío para no cambiar)' : 'Client Secret'}>
+                  <PasswordInput
+                    value={form.config.ords_client_secret}
+                    onChange={(v) => setConfig('ords_client_secret', v)}
+                    placeholder={initialData ? '(sin cambios)' : '••••••••'}
+                  />
+                </Field>
+              </>
             )}
           </>
         )}

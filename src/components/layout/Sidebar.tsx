@@ -5,25 +5,30 @@ import {
   FileText,
   ExternalLink,
   ChevronRight,
-  Zap,
   FlaskConical,
+  Users,
+  LogOut,
+  Shield,
+  User,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import type { AuthUser } from '../../types';
 
-export type Page = 'dashboard' | 'tenants' | 'jobs' | 'comprobantes' | 'settings';
+export type Page = 'dashboard' | 'tenants' | 'jobs' | 'comprobantes' | 'users';
 
 interface NavItem {
   id: Page;
   label: string;
   icon: React.ReactNode;
-  badge?: string;
+  adminOnly?: boolean;
 }
 
 const NAV_ITEMS: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
-  { id: 'tenants', label: 'Empresas', icon: <Building2 className="w-4 h-4" /> },
+  { id: 'tenants', label: 'Empresas', icon: <Building2 className="w-4 h-4" />, adminOnly: true },
   { id: 'jobs', label: 'Jobs', icon: <Briefcase className="w-4 h-4" /> },
   { id: 'comprobantes', label: 'Comprobantes', icon: <FileText className="w-4 h-4" /> },
+  { id: 'users', label: 'Usuarios', icon: <Users className="w-4 h-4" />, adminOnly: true },
 ];
 
 interface SidebarProps {
@@ -31,26 +36,26 @@ interface SidebarProps {
   onNavigate: (page: Page) => void;
   apiStatus: 'ok' | 'error' | 'checking';
   mockMode?: boolean;
+  user?: AuthUser | null;
+  onLogout?: () => void;
 }
 
-export function Sidebar({ current, onNavigate, apiStatus, mockMode }: SidebarProps) {
+export function Sidebar({ current, onNavigate, apiStatus, mockMode, user, onLogout }: SidebarProps) {
+  const isAdmin = user?.rol === 'ADMIN';
+  const visibleItems = NAV_ITEMS.filter((item) => !item.adminOnly || isAdmin);
+
   return (
     <aside className="w-60 flex-shrink-0 h-screen sticky top-0 flex flex-col bg-white border-r border-zinc-200">
       <div className="px-5 pt-6 pb-4 border-b border-zinc-100">
-        <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 bg-zinc-900 rounded-lg flex items-center justify-center flex-shrink-0">
-            <Zap className="w-3.5 h-3.5 text-white" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-zinc-900 leading-none">SET Comprobantes</p>
-            <p className="text-[10px] text-zinc-400 mt-0.5">Panel de control</p>
-          </div>
+        <div>
+          <p className="text-sm font-semibold text-zinc-900 leading-none">Kmelot</p>
+          <p className="text-[10px] text-zinc-400 mt-0.5">DNIT Comprobantes</p>
         </div>
       </div>
 
       <nav className="flex-1 px-3 py-4 overflow-y-auto">
         <div className="space-y-0.5">
-          {NAV_ITEMS.map((item) => (
+          {visibleItems.map((item) => (
             <button
               key={item.id}
               onClick={() => onNavigate(item.id)}
@@ -61,11 +66,6 @@ export function Sidebar({ current, onNavigate, apiStatus, mockMode }: SidebarPro
             >
               {item.icon}
               <span className="flex-1">{item.label}</span>
-              {item.badge && (
-                <span className="ml-auto text-xs bg-rose-500 text-white rounded-full px-1.5 py-0.5 leading-none">
-                  {item.badge}
-                </span>
-              )}
               {current === item.id && (
                 <ChevronRight className="w-3.5 h-3.5 ml-auto opacity-50" />
               )}
@@ -89,7 +89,29 @@ export function Sidebar({ current, onNavigate, apiStatus, mockMode }: SidebarPro
         </div>
       </nav>
 
-      <div className="px-4 py-4 border-t border-zinc-100">
+      <div className="px-4 py-4 border-t border-zinc-100 space-y-3">
+        {user && (
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg bg-zinc-100 flex items-center justify-center flex-shrink-0">
+              {isAdmin ? (
+                <Shield className="w-3.5 h-3.5 text-zinc-600" />
+              ) : (
+                <User className="w-3.5 h-3.5 text-zinc-400" />
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-zinc-700 truncate">{user.nombre}</p>
+              <p className="text-[10px] text-zinc-400">{isAdmin ? 'Administrador' : 'Usuario'}</p>
+            </div>
+            <button
+              onClick={onLogout}
+              className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 transition-colors"
+              title="Cerrar sesión"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
         {mockMode ? (
           <div className="flex items-center gap-2">
             <FlaskConical className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
@@ -116,9 +138,6 @@ export function Sidebar({ current, onNavigate, apiStatus, mockMode }: SidebarPro
             </span>
           </div>
         )}
-        <p className="text-[10px] text-zinc-400 mt-1">
-          {mockMode ? 'datos de ejemplo en memoria' : ((import.meta.env.VITE_API_URL as string) || 'http://localhost:4000')}
-        </p>
       </div>
     </aside>
   );

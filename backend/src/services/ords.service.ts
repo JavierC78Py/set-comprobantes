@@ -15,6 +15,14 @@ interface OrdsResponse {
   error?: string;
 }
 
+interface OAuthToken {
+  accessToken: string;
+  expiresAt: number; // timestamp ms
+}
+
+// Cache de tokens OAuth2 por tenant_id
+const tokenCache = new Map<string, OAuthToken>();
+
 function buildOrdsPayload(
   comprobante: Comprobante,
   tenantRuc: string
@@ -36,9 +44,64 @@ function buildOrdsPayload(
   };
 }
 
-function buildAxiosInstance(
-  config: TenantConfig & { ords_password?: string; ords_token?: string }
-): AxiosInstance {
+/**
+ * Obtiene un access_token OAuth2 usando client_credentials.
+ * Cachea el token y lo renueva automáticamente cuando expira.
+ */
+async function getOAuth2Token(
+  tenantId: string,
+  tokenEndpoint: string,
+  clientId: string,
+  clientSecret: string
+): Promise<string> {
+  const cached = tokenCache.get(tenantId);
+  // Renovar 60 segundos antes de que expire
+  if (cached && cached.expiresAt > Date.now() + 60_000) {
+    return cached.accessToken;
+  }
+
+  logger.info('Solicitando nuevo token OAuth2 para ORDS', {
+    tenant_id: tenantId,
+    token_endpoint: tokenEndpoint,
+  });
+
+  const response = await axios.post(
+    tokenEndpoint,
+    'grant_type=client_credentials',
+    {
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      auth: { username: clientId, password: clientSecret },
+      timeout: 10_000,
+    }
+  );
+
+  const { access_token, expires_in } = response.data;
+  if (!access_token) {
+    throw new Error('OAuth2: respuesta sin access_token');
+  }
+
+  // expires_in viene en segundos, convertir a ms
+  const expiresAt = Date.now() + (expires_in ?? 3600) * 1000;
+  tokenCache.set(tenantId, { accessToken: access_token, expiresAt });
+
+  logger.info('Token OAuth2 obtenido exitosamente', {
+    tenant_id: tenantId,
+    expires_in: expires_in ?? 3600,
+  });
+
+  return access_token;
+}
+
+interface DecryptedConfig extends TenantConfig {
+  ords_password?: string;
+  ords_token?: string;
+  ords_client_secret?: string;
+}
+
+async function buildAxiosInstance(
+  tenantId: string,
+  config: DecryptedConfig
+): Promise<AxiosInstance> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
@@ -51,6 +114,19 @@ function buildAxiosInstance(
     headers['Authorization'] = `Basic ${credentials}`;
   } else if (config.ords_tipo_autenticacion === 'BEARER' && config.ords_token) {
     headers['Authorization'] = `Bearer ${config.ords_token}`;
+  } else if (
+    config.ords_tipo_autenticacion === 'CLIENT_CREDENTIALS' &&
+    config.ords_token_endpoint &&
+    config.ords_client_id &&
+    config.ords_client_secret
+  ) {
+    const accessToken = await getOAuth2Token(
+      tenantId,
+      config.ords_token_endpoint,
+      config.ords_client_id,
+      config.ords_client_secret
+    );
+    headers['Authorization'] = `Bearer ${accessToken}`;
   }
 
   return axios.create({
@@ -61,7 +137,8 @@ function buildAxiosInstance(
 }
 
 async function sendWithRetry(
-  axiosInstance: AxiosInstance,
+  tenantId: string,
+  config: DecryptedConfig,
   endpoint: string,
   payload: OrdsPayload,
   maxRetries = 2
@@ -70,10 +147,24 @@ async function sendWithRetry(
 
   for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
     try {
+      // Reconstruir el axios instance en cada intento para obtener token fresco si expiró
+      const axiosInstance = await buildAxiosInstance(tenantId, config);
       const response = await axiosInstance.post(endpoint, payload);
       return { success: true, data: response.data };
     } catch (err) {
       const axiosErr = err as AxiosError;
+
+      // Si es 401 y usamos OAuth2, invalidar el token cacheado para forzar renovación
+      if (
+        axiosErr.response?.status === 401 &&
+        config.ords_tipo_autenticacion === 'CLIENT_CREDENTIALS'
+      ) {
+        tokenCache.delete(tenantId);
+        logger.warn('Token OAuth2 inválido, se forzará renovación en próximo intento', {
+          tenant_id: tenantId,
+        });
+      }
+
       lastError = new Error(
         axiosErr.response
           ? `HTTP ${axiosErr.response.status}: ${JSON.stringify(axiosErr.response.data)}`
@@ -108,7 +199,7 @@ export class OrdsService {
       return { success: false, error: 'ORDS no configurado para este tenant' };
     }
 
-    const decryptedConfig = {
+    const decryptedConfig: DecryptedConfig = {
       ...tenantConfig,
       ords_password: tenantConfig.ords_password_encrypted
         ? decrypt(tenantConfig.ords_password_encrypted)
@@ -116,24 +207,23 @@ export class OrdsService {
       ords_token: tenantConfig.ords_token_encrypted
         ? decrypt(tenantConfig.ords_token_encrypted)
         : undefined,
+      ords_client_secret: tenantConfig.ords_client_secret_encrypted
+        ? decrypt(tenantConfig.ords_client_secret_encrypted)
+        : undefined,
     };
 
-    const axiosInstance = buildAxiosInstance(decryptedConfig);
-
-    // TODO: Ajustar el payload según el schema exacto que espera la API ORDS del cliente.
-    // El método buildOrdsPayload() genera un JSON con campos estándar.
-    // Si el endpoint ORDS requiere un wrapper o nombres de campos distintos,
-    // modificar buildOrdsPayload() o agregar una transformación aquí.
     const payload = buildOrdsPayload(comprobante, tenantRuc);
 
     logger.info('Enviando comprobante a ORDS', {
       comprobante_id: comprobante.id,
       numero: comprobante.numero_comprobante,
       endpoint: tenantConfig.ords_endpoint_facturas,
+      auth_type: tenantConfig.ords_tipo_autenticacion,
     });
 
     const result = await sendWithRetry(
-      axiosInstance,
+      tenantConfig.tenant_id,
+      decryptedConfig,
       tenantConfig.ords_endpoint_facturas,
       payload
     );

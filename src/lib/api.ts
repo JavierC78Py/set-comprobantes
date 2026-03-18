@@ -4,6 +4,7 @@ import type {
   Job,
   Comprobante,
   PaginatedResponse,
+  UserRecord,
 } from '../types';
 import { mockStore } from './mock-data';
 
@@ -11,19 +12,31 @@ export const MOCK_MODE = (import.meta.env.VITE_MOCK_MODE as string) === 'true';
 
 const BASE_URL = (import.meta.env.VITE_API_URL as string) || 'http://localhost:4000';
 
+const TOKEN_KEY = 'auth_token';
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const url = `${BASE_URL}${path}`;
-  const res = await fetch(url, {
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    ...options,
-  });
+  const token = localStorage.getItem(TOKEN_KEY);
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(options?.headers as Record<string, string> || {}),
+  };
+
+  const res = await fetch(url, { ...options, headers });
+
+  if (res.status === 401) {
+    localStorage.removeItem(TOKEN_KEY);
+    window.location.reload();
+    throw new Error('Sesión expirada');
+  }
 
   if (!res.ok) {
     let msg = `HTTP ${res.status}`;
     try {
       const body = await res.json();
       msg = body.message || body.error || msg;
-    } catch (_) {}
+    } catch { /* ignore parse errors */ }
     throw new Error(msg);
   }
 
@@ -99,11 +112,14 @@ export const api = {
         body: JSON.stringify(body),
       }).then((r) => ({ job_id: r.data.job_id, tipo_job: 'CONSULTA_COMPROBANTES', estado: 'PENDING' }));
     },
-    enviarOrds: (tenantId: string): Promise<{ job_id: string; tipo_job: string; estado: string }> => {
+    enviarOrds: (
+      tenantId: string,
+      body?: { fecha_desde?: string; fecha_hasta?: string; forzar_reenvio?: boolean }
+    ): Promise<{ job_id: string; tipo_job: string; estado: string }> => {
       if (MOCK_MODE) return Promise.resolve({ job_id: 'mock-ords', tipo_job: 'ENVIAR_A_ORDS', estado: 'PENDING' });
       return request<{ message: string; data: { job_id: string } }>(`/tenants/${tenantId}/jobs/enviar-ords`, {
         method: 'POST',
-        body: JSON.stringify({}),
+        body: JSON.stringify(body || {}),
       }).then((r) => ({ job_id: r.data.job_id, tipo_job: 'ENVIAR_A_ORDS', estado: 'PENDING' }));
     },
     descargarXml: (tenantId: string, body?: { batch_size?: number; comprobante_id?: string }): Promise<{ job_id: string; tipo_job: string; estado: string }> => {
@@ -151,6 +167,18 @@ export const api = {
         },
       }));
     },
+    stats: (tenantId: string): Promise<{
+      total: number;
+      con_xml: number;
+      enviados_ords: number;
+      pendientes_ords: number;
+      fallidos_ords: number;
+    }> => {
+      if (MOCK_MODE) return Promise.resolve({ total: 0, con_xml: 0, enviados_ords: 0, pendientes_ords: 0, fallidos_ords: 0 });
+      return request<{ data: { total: number; con_xml: number; enviados_ords: number; pendientes_ords: number; fallidos_ords: number } }>(
+        `/tenants/${tenantId}/comprobantes/stats`
+      ).then((r) => r.data);
+    },
     get: (tenantId: string, comprobanteId: string): Promise<Comprobante> => {
       if (MOCK_MODE) return mockStore.getComprobante(tenantId, comprobanteId);
       return request<{ data: Comprobante }>(`/tenants/${tenantId}/comprobantes/${comprobanteId}`).then((r) => r.data);
@@ -176,6 +204,33 @@ export const api = {
       if (params?.ruc_vendedor) q.set('ruc_vendedor', params.ruc_vendedor);
       if (params?.xml_descargado !== undefined) q.set('xml_descargado', String(params.xml_descargado));
       return `${BASE_URL}/tenants/${tenantId}/comprobantes/exportar?${q.toString()}`;
+    },
+  },
+
+  users: {
+    list: (): Promise<UserRecord[]> => {
+      return request<{ data: UserRecord[] }>('/users').then((r) => r.data ?? []);
+    },
+    create: (body: {
+      username: string;
+      password: string;
+      nombre: string;
+      rol: 'ADMIN' | 'USER';
+      tenant_ids?: string[];
+    }): Promise<UserRecord> => {
+      return request<{ data: UserRecord }>('/users', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }).then((r) => r.data);
+    },
+    update: (id: string, body: Record<string, unknown>): Promise<UserRecord> => {
+      return request<{ data: UserRecord }>(`/users/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(body),
+      }).then((r) => r.data);
+    },
+    delete: (id: string): Promise<void> => {
+      return request(`/users/${id}`, { method: 'DELETE' }).then(() => {});
     },
   },
 };

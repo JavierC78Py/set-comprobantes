@@ -12,6 +12,10 @@ import {
   Settings,
   CheckCircle2,
   Send,
+  FileText,
+  Code2,
+  AlertCircle,
+  Clock,
 } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { Badge } from '../components/ui/Badge';
@@ -58,9 +62,15 @@ export function Tenants({
   const [consultaLoading, setConsultaLoading] = useState(false);
   const [ordsModalOpen, setOrdsModalOpen] = useState(false);
   const [ordsLoading, setOrdsLoading] = useState(false);
+  const [ordsFechaDesde, setOrdsFechaDesde] = useState('');
+  const [ordsFechaHasta, setOrdsFechaHasta] = useState('');
+  const [ordsForzarReenvio, setOrdsForzarReenvio] = useState(false);
   const [xmlModalOpen, setXmlModalOpen] = useState(false);
   const [xmlLoading, setXmlLoading] = useState(false);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [tenantStats, setTenantStats] = useState<{
+    total: number; con_xml: number; enviados_ords: number; pendientes_ords: number; fallidos_ords: number;
+  } | null>(null);
 
   const loadList = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -78,9 +88,14 @@ export function Tenants({
 
   const loadDetail = useCallback(async (id: string) => {
     setDetailLoading(true);
+    setTenantStats(null);
     try {
-      const data = await api.tenants.get(id);
+      const [data, stats] = await Promise.all([
+        api.tenants.get(id),
+        api.comprobantes.stats(id),
+      ]);
       setSelectedTenant(data);
+      setTenantStats(stats);
     } catch (e: unknown) {
       toastError('Error al cargar empresa', e instanceof Error ? e.message : undefined);
     } finally {
@@ -173,9 +188,16 @@ export function Tenants({
     if (!selectedId) return;
     setOrdsLoading(true);
     try {
-      await api.jobs.enviarOrds(selectedId);
+      await api.jobs.enviarOrds(selectedId, {
+        fecha_desde: ordsFechaDesde || undefined,
+        fecha_hasta: ordsFechaHasta || undefined,
+        forzar_reenvio: ordsForzarReenvio,
+      });
       toastSuccess('Job encolado', 'Se enviarán los comprobantes con XML a ORDS');
       setOrdsModalOpen(false);
+      setOrdsFechaDesde('');
+      setOrdsFechaHasta('');
+      setOrdsForzarReenvio(false);
       onNavigate('jobs');
     } catch (e: unknown) {
       toastError('Error al encolar envío ORDS', e instanceof Error ? e.message : undefined);
@@ -413,9 +435,9 @@ export function Tenants({
                   </button>
                   <button
                     onClick={() => setConsultaModalOpen(true)}
-                    className="btn-md btn-secondary"
+                    className="btn-md btn-emerald"
                   >
-                    <Search className="w-3.5 h-3.5" /> Consultar Registrados
+                    <Play className="w-3.5 h-3.5" /> Periodo específico
                   </button>
                   <button
                     onClick={() => setXmlModalOpen(true)}
@@ -437,6 +459,56 @@ export function Tenants({
                   </button>
                 </div>
               </div>
+
+              {tenantStats && (
+                <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+                  <div className="card p-4 text-center">
+                    <div className="flex items-center justify-center gap-1.5 mb-1">
+                      <FileText className="w-3.5 h-3.5 text-zinc-400" />
+                      <p className="text-xs text-zinc-500">Total documentos</p>
+                    </div>
+                    <p className="text-xl font-bold text-zinc-900 tabular-nums">
+                      {tenantStats.total.toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="card p-4 text-center">
+                    <div className="flex items-center justify-center gap-1.5 mb-1">
+                      <Code2 className="w-3.5 h-3.5 text-blue-500" />
+                      <p className="text-xs text-zinc-500">Con XML</p>
+                    </div>
+                    <p className="text-xl font-bold text-blue-600 tabular-nums">
+                      {tenantStats.con_xml.toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="card p-4 text-center">
+                    <div className="flex items-center justify-center gap-1.5 mb-1">
+                      <Send className="w-3.5 h-3.5 text-emerald-500" />
+                      <p className="text-xs text-zinc-500">Enviados ORDS</p>
+                    </div>
+                    <p className="text-xl font-bold text-emerald-600 tabular-nums">
+                      {tenantStats.enviados_ords.toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="card p-4 text-center">
+                    <div className="flex items-center justify-center gap-1.5 mb-1">
+                      <Clock className="w-3.5 h-3.5 text-amber-500" />
+                      <p className="text-xs text-zinc-500">Pendientes ORDS</p>
+                    </div>
+                    <p className="text-xl font-bold text-amber-600 tabular-nums">
+                      {tenantStats.pendientes_ords.toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="card p-4 text-center">
+                    <div className="flex items-center justify-center gap-1.5 mb-1">
+                      <AlertCircle className="w-3.5 h-3.5 text-rose-500" />
+                      <p className="text-xs text-zinc-500">Fallidos ORDS</p>
+                    </div>
+                    <p className="text-xl font-bold text-rose-600 tabular-nums">
+                      {tenantStats.fallidos_ords.toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <div className="card p-5">
@@ -628,14 +700,24 @@ export function Tenants({
 
       <Modal
         open={ordsModalOpen}
-        onClose={() => setOrdsModalOpen(false)}
+        onClose={() => {
+          setOrdsModalOpen(false);
+          setOrdsFechaDesde('');
+          setOrdsFechaHasta('');
+          setOrdsForzarReenvio(false);
+        }}
         title="Enviar a ORDS"
         description={activeTenantName}
-        size="sm"
+        size="md"
         footer={
           <>
             <button
-              onClick={() => setOrdsModalOpen(false)}
+              onClick={() => {
+                setOrdsModalOpen(false);
+                setOrdsFechaDesde('');
+                setOrdsFechaHasta('');
+                setOrdsForzarReenvio(false);
+              }}
               className="btn-md btn-secondary"
               disabled={ordsLoading}
             >
@@ -647,7 +729,7 @@ export function Tenants({
               className="btn-md btn-primary"
             >
               {ordsLoading && <Spinner size="xs" />}
-              Enviar
+              {ordsForzarReenvio ? 'Reenviar todos' : 'Enviar pendientes'}
             </button>
           </>
         }
@@ -656,9 +738,55 @@ export function Tenants({
           Se encolará un job <span className="tag">ENVIAR_A_ORDS</span> que enviará
           los comprobantes con XML descargado a la API ORDS configurada.
         </p>
-        <p className="text-xs text-zinc-400 mt-3">
-          Solo se envían comprobantes que ya tengan el XML descargado de eKuatia.
-        </p>
+
+        <div className="mt-4 space-y-3">
+          <p className="text-xs font-medium text-zinc-700">Rango de fechas (opcional)</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">Desde</label>
+              <input
+                type="date"
+                className="input"
+                value={ordsFechaDesde}
+                onChange={(e) => setOrdsFechaDesde(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="label">Hasta</label>
+              <input
+                type="date"
+                className="input"
+                value={ordsFechaHasta}
+                onChange={(e) => setOrdsFechaHasta(e.target.value)}
+              />
+            </div>
+          </div>
+          <p className="text-xs text-zinc-400">
+            Si no se especifica rango, se envían todos los comprobantes con XML descargado.
+          </p>
+        </div>
+
+        <div className="mt-4 flex items-center justify-between p-3 bg-amber-50 rounded-lg border border-amber-200">
+          <div>
+            <p className="text-xs font-medium text-zinc-700">Forzar reenvío</p>
+            <p className="text-xs text-zinc-500 mt-0.5">
+              Reenviar comprobantes ya enviados o fallidos
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setOrdsForzarReenvio(!ordsForzarReenvio)}
+            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+              ordsForzarReenvio ? 'bg-amber-500' : 'bg-zinc-300'
+            }`}
+          >
+            <span
+              className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                ordsForzarReenvio ? 'translate-x-4' : 'translate-x-0.5'
+              }`}
+            />
+          </button>
+        </div>
       </Modal>
     </div>
   );

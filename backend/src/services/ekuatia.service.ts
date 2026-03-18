@@ -217,7 +217,7 @@ export function parsearXml(xmlText: string, cdc: string): DetallesXml {
   const getNum = (parent: Element | Document, tag: string): number => {
     const v = get(parent, tag);
     if (!v) return 0;
-    return parseFloat(v.replace(/[^\d.,\-]/g, '').replace(',', '.')) || 0;
+    return parseFloat(v.replace(/[^\d.,-]/g, '').replace(',', '.')) || 0;
   };
 
   const orUndef = (v: string): string | undefined => v || undefined;
