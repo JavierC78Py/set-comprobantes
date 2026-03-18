@@ -1,7 +1,7 @@
 export type TenantStatus = 'activo' | 'inactivo';
 export type AuthType = 'BASIC' | 'BEARER' | 'NONE';
 export type JobType = 'SYNC_COMPROBANTES' | 'ENVIAR_A_ORDS' | 'DESCARGAR_XML' | 'CONSULTA_COMPROBANTES';
-export type JobStatus = 'PENDING' | 'RUNNING' | 'DONE' | 'FAILED';
+export type JobStatus = 'PENDING' | 'RUNNING' | 'DONE' | 'FAILED' | 'CANCELLED';
 export type EnvioStatus = 'PENDING' | 'SENT' | 'FAILED';
 export type XmlJobStatus = 'PENDING' | 'RUNNING' | 'DONE' | 'FAILED';
 export type ComprobanteOrigen = 'ELECTRONICO' | 'VIRTUAL';

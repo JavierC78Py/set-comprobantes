@@ -11,6 +11,7 @@ import {
   ChevronRight,
   RefreshCw,
   AlertCircle,
+  Ban,
 } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { Badge } from '../components/ui/Badge';
@@ -31,6 +32,7 @@ function JobStatusBadge({ status }: { status: JobStatus }) {
     RUNNING: { variant: 'info', label: 'En ejecución' },
     DONE: { variant: 'success', label: 'Completado' },
     FAILED: { variant: 'danger', label: 'Fallido' },
+    CANCELLED: { variant: 'neutral', label: 'Cancelado' },
   };
   const { variant, label } = map[status];
   return (
@@ -94,6 +96,7 @@ function JobRow({ job, tenant, expanded, onToggle, onCancel, cancelling }: JobRo
     FAILED: <XCircle className="w-3.5 h-3.5 text-rose-500 flex-shrink-0" />,
     RUNNING: <Loader2 className="w-3.5 h-3.5 text-sky-500 animate-spin flex-shrink-0" />,
     PENDING: <Clock className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />,
+    CANCELLED: <Ban className="w-3.5 h-3.5 text-zinc-400 flex-shrink-0" />,
   }[job.estado];
 
   return (
@@ -302,6 +305,7 @@ export function Jobs({ toastError, toastSuccess }: JobsProps) {
     RUNNING: jobs.filter((j) => j.estado === 'RUNNING').length,
     DONE: jobs.filter((j) => j.estado === 'DONE').length,
     FAILED: jobs.filter((j) => j.estado === 'FAILED').length,
+    CANCELLED: jobs.filter((j) => j.estado === 'CANCELLED').length,
   };
 
   if (loading) return <PageLoader />;
@@ -315,12 +319,13 @@ export function Jobs({ toastError, toastSuccess }: JobsProps) {
         refreshing={refreshing}
       />
 
-      <div className="grid grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-5 gap-3 mb-6">
         {[
           { key: 'PENDING', label: 'Pendientes', icon: <Clock className="w-4 h-4 text-amber-500" />, bg: 'bg-amber-50' },
           { key: 'RUNNING', label: 'En ejecución', icon: <Loader2 className="w-4 h-4 text-sky-500 animate-spin" />, bg: 'bg-sky-50' },
           { key: 'DONE', label: 'Completados', icon: <CheckCircle2 className="w-4 h-4 text-emerald-500" />, bg: 'bg-emerald-50' },
           { key: 'FAILED', label: 'Fallidos', icon: <XCircle className="w-4 h-4 text-rose-500" />, bg: 'bg-rose-50' },
+          { key: 'CANCELLED', label: 'Cancelados', icon: <Ban className="w-4 h-4 text-zinc-400" />, bg: 'bg-zinc-100' },
         ].map(({ key, label, icon, bg }) => (
           <button
             key={key}

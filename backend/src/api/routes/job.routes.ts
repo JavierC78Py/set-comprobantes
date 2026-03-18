@@ -86,7 +86,11 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
       const batchSize = parsed.data.batch_size ?? 20;
       const enqueuedCount = await enqueueXmlDownloads(req.params.id, batchSize);
 
-      if (enqueuedCount === 0) {
+      // Verificar si hay xml_jobs pendientes (incluyendo los ya encolados previamente)
+      const { obtenerPendientesXml } = await import('../../services/ekuatia.service');
+      const pendientes = await obtenerPendientesXml(req.params.id, 1);
+
+      if (enqueuedCount === 0 && pendientes.length === 0) {
         return reply.status(200).send({
           message: 'No hay XMLs pendientes de descarga para esta empresa',
           data: { job_id: null },
@@ -198,9 +202,8 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
       return reply.status(409).send({ error: `No se puede cancelar un job en estado ${job.estado}` });
     }
 
-    // Forzar estado FAILED directamente, sin lógica de reintentos
     await dbQuery(
-      `UPDATE jobs SET estado = 'FAILED', error_message = $2, updated_at = NOW() WHERE id = $1`,
+      `UPDATE jobs SET estado = 'CANCELLED', error_message = $2, updated_at = NOW() WHERE id = $1`,
       [req.params.id, 'Cancelado manualmente por el usuario']
     );
     return reply.send({ message: 'Job cancelado', data: { job_id: job.id } });

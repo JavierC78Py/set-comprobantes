@@ -88,4 +88,5 @@ export const JOB_TYPE_LABELS: Record<string, string> = {
   SYNC_COMPROBANTES: 'Sincronización',
   ENVIAR_A_ORDS: 'Envío ORDS',
   DESCARGAR_XML: 'Descarga XML',
+  CONSULTA_COMPROBANTES: 'Consulta de comprobantes',
 };
