@@ -13,6 +13,7 @@ import {
   Circle,
   FileJson,
   FileType2,
+  FileSpreadsheet,
   Send,
   AlertCircle,
   Clock,
@@ -206,36 +207,31 @@ export function Comprobantes({ toastError }: ComprobantesProps) {
                 </button>
                 {showExport && (
                   <div className="absolute right-0 top-full mt-1 bg-white border border-zinc-200 rounded-lg shadow-lg z-20 min-w-[160px] py-1 animate-fade-in">
-                    <a
-                      href={api.comprobantes.exportUrl(selectedTenantId, 'json', {
-                        fecha_desde: fechaDesde || undefined,
-                        fecha_hasta: fechaHasta || undefined,
-                        tipo_comprobante: tipoFilter || undefined,
-                        ruc_vendedor: search.match(/^\d/) ? search : undefined,
-                        xml_descargado: xmlFilter === '' ? undefined : xmlFilter === 'true',
-                      })}
-                      download
-                      onClick={() => setShowExport(false)}
-                      className="flex items-center gap-2.5 px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors"
-                    >
-                      <FileJson className="w-3.5 h-3.5 text-zinc-400" />
-                      Exportar JSON
-                    </a>
-                    <a
-                      href={api.comprobantes.exportUrl(selectedTenantId, 'txt', {
-                        fecha_desde: fechaDesde || undefined,
-                        fecha_hasta: fechaHasta || undefined,
-                        tipo_comprobante: tipoFilter || undefined,
-                        ruc_vendedor: search.match(/^\d/) ? search : undefined,
-                        xml_descargado: xmlFilter === '' ? undefined : xmlFilter === 'true',
-                      })}
-                      download
-                      onClick={() => setShowExport(false)}
-                      className="flex items-center gap-2.5 px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors"
-                    >
-                      <FileType2 className="w-3.5 h-3.5 text-zinc-400" />
-                      Exportar TXT
-                    </a>
+                    {(['xlsx', 'json', 'txt'] as const).map((fmt) => (
+                      <button
+                        key={fmt}
+                        onClick={async () => {
+                          setShowExport(false);
+                          try {
+                            await api.comprobantes.exportDownload(selectedTenantId, fmt, {
+                              fecha_desde: fechaDesde || undefined,
+                              fecha_hasta: fechaHasta || undefined,
+                              tipo_comprobante: tipoFilter || undefined,
+                              ruc_vendedor: search.match(/^\d/) ? search : undefined,
+                              xml_descargado: xmlFilter === '' ? undefined : xmlFilter === 'true',
+                            });
+                          } catch (err) {
+                            toastError((err as Error).message);
+                          }
+                        }}
+                        className="flex items-center gap-2.5 px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors w-full text-left"
+                      >
+                        {fmt === 'xlsx' && <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-500" />}
+                        {fmt === 'json' && <FileJson className="w-3.5 h-3.5 text-zinc-400" />}
+                        {fmt === 'txt' && <FileType2 className="w-3.5 h-3.5 text-zinc-400" />}
+                        Exportar {fmt === 'xlsx' ? 'Excel' : fmt.toUpperCase()}
+                      </button>
+                    ))}
                   </div>
                 )}
               </div>
@@ -628,28 +624,25 @@ export function Comprobantes({ toastError }: ComprobantesProps) {
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-zinc-400">Descargar:</span>
-                  <a
-                    href={api.comprobantes.downloadUrl(selectedComprobante.tenant_id, selectedComprobante.id, 'json')}
-                    download
+                  <button
+                    onClick={() => api.comprobantes.downloadFile(selectedComprobante.tenant_id, selectedComprobante.id, 'json').catch((e) => toastError(e.message))}
                     className="btn-sm btn-secondary gap-1.5"
                   >
                     <FileJson className="w-3 h-3" /> JSON
-                  </a>
-                  <a
-                    href={api.comprobantes.downloadUrl(selectedComprobante.tenant_id, selectedComprobante.id, 'txt')}
-                    download
+                  </button>
+                  <button
+                    onClick={() => api.comprobantes.downloadFile(selectedComprobante.tenant_id, selectedComprobante.id, 'txt').catch((e) => toastError(e.message))}
                     className="btn-sm btn-secondary gap-1.5"
                   >
                     <FileType2 className="w-3 h-3" /> TXT
-                  </a>
+                  </button>
                   {selectedComprobante.xml_contenido && (
-                    <a
-                      href={api.comprobantes.downloadUrl(selectedComprobante.tenant_id, selectedComprobante.id, 'xml')}
-                      download
+                    <button
+                      onClick={() => api.comprobantes.downloadFile(selectedComprobante.tenant_id, selectedComprobante.id, 'xml').catch((e) => toastError(e.message))}
                       className="btn-sm btn-secondary gap-1.5"
                     >
                       <Code2 className="w-3 h-3" /> XML
-                    </a>
+                    </button>
                   )}
                 </div>
               </div>

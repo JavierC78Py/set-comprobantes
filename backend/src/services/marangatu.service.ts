@@ -685,29 +685,77 @@ export class MarangatuService {
       return buttons.find((b) => b.textContent?.trim().toLowerCase().includes('búsqueda') || b.textContent?.trim().toLowerCase().includes('busqueda')) ?? null;
     });
     if (!btnBusqueda || !(btnBusqueda as unknown as { asElement: () => unknown }).asElement?.()) {
+      // Screenshot para debug antes de fallar
+      try { await consultaPage.screenshot({ path: 'screenshots/consulta-no-btn-busqueda.png', fullPage: true }); } catch {}
       throw new Error('No se encontró el botón "Búsqueda"');
     }
+
+    // Verificar estado del formulario antes de clickear
+    const formState = await consultaPage.evaluate(() => {
+      const tipoReg = document.querySelector('#tipoRegistro') as HTMLSelectElement | null;
+      const fechaDesdeInput = document.querySelector('input[data-ng-model="vm.datos.filtros.fechaEmisionDesde"]') as HTMLInputElement
+        || document.querySelector('input[ng-model="vm.datos.filtros.fechaEmisionDesde"]') as HTMLInputElement;
+      const fechaHastaInput = document.querySelector('input[data-ng-model="vm.datos.filtros.fechaEmisionHasta"]') as HTMLInputElement
+        || document.querySelector('input[ng-model="vm.datos.filtros.fechaEmisionHasta"]') as HTMLInputElement;
+      return {
+        tipoRegistro: tipoReg?.value ?? 'N/A',
+        fechaDesde: fechaDesdeInput?.value ?? 'N/A',
+        fechaHasta: fechaHastaInput?.value ?? 'N/A',
+        url: window.location.href,
+      };
+    });
+    logger.info('Estado del formulario antes de Búsqueda', formState);
+
     await (btnBusqueda as unknown as import('puppeteer').ElementHandle<HTMLButtonElement>).click();
+    logger.info('Click en Búsqueda realizado, esperando resultados...');
 
     // Esperar a que cargue la tabla con resultados o un mensaje de sin resultados
-    logger.debug('Esperando carga de resultados...');
-    await consultaPage.waitForFunction(
-      () => {
-        // ¿Hay una tabla con filas?
+    try {
+      await consultaPage.waitForFunction(
+        () => {
+          // ¿Hay una tabla con filas?
+          const tables = Array.from(document.querySelectorAll('table'));
+          const hayTablaConFilas = tables.some((t) => t.querySelectorAll('tbody tr').length > 0);
+          if (hayTablaConFilas) return true;
+          // ¿Hay un mensaje de sin resultados?
+          const alertas = Array.from(document.querySelectorAll('.alert, .alert-info, .alert-warning, [class*="alert"]'));
+          const sinResultados = alertas.some((el) => {
+            const text = el.textContent?.toLowerCase() ?? '';
+            return text.includes('no se encontr') || text.includes('sin resultado') || text.includes('no existen') || text.includes('no hay');
+          });
+          if (sinResultados) return true;
+          // ¿Hay un spinner/loading visible? (no resolver aún, solo para no timeout)
+          return false;
+        },
+        { timeout: 60000 }
+      );
+    } catch (waitErr) {
+      // Capturar screenshot y estado del DOM para diagnóstico
+      try {
+        await consultaPage.screenshot({ path: 'screenshots/consulta-timeout-busqueda.png', fullPage: true });
+        logger.info('Screenshot guardado en screenshots/consulta-timeout-busqueda.png');
+      } catch {}
+      const domDebug = await consultaPage.evaluate(() => {
         const tables = Array.from(document.querySelectorAll('table'));
-        const hayTablaConFilas = tables.some((t) => t.querySelectorAll('tbody tr').length > 0);
-        if (hayTablaConFilas) return true;
-        // ¿Hay un mensaje de sin resultados?
-        const alertas = Array.from(document.querySelectorAll('.alert, .alert-info, .alert-warning, [class*="alert"]'));
-        const sinResultados = alertas.some((el) => {
-          const text = el.textContent?.toLowerCase() ?? '';
-          return text.includes('no se encontr') || text.includes('sin resultado') || text.includes('no existen') || text.includes('no hay');
-        });
-        if (sinResultados) return true;
-        return false;
-      },
-      { timeout: 60000 } // hasta 60s para consultas con rangos de fecha amplios
-    );
+        const alerts = Array.from(document.querySelectorAll('.alert, [class*="alert"], .modal, .modal-dialog, .loading, [class*="loading"], [class*="spinner"]'));
+        const body = document.body?.innerText?.substring(0, 500) ?? '';
+        return {
+          url: window.location.href,
+          tableCount: tables.length,
+          tablesInfo: tables.map((t) => ({
+            id: t.id,
+            classes: t.className,
+            tbodyRows: t.querySelectorAll('tbody tr').length,
+            theadCols: t.querySelectorAll('thead th').length,
+          })),
+          alertCount: alerts.length,
+          alertTexts: alerts.map((a) => a.textContent?.substring(0, 100) ?? ''),
+          bodyPreview: body,
+        };
+      }).catch(() => ({ url: 'error', tableCount: -1, tablesInfo: [], alertCount: -1, alertTexts: [], bodyPreview: '' }));
+      logger.error('Timeout esperando resultados de consulta — estado del DOM', domDebug);
+      throw waitErr;
+    }
     await this.waitForAngular(consultaPage, 1000);
 
     // Verificar si hay tabla o mensaje vacío — buscar CUALQUIER tabla con filas
@@ -902,7 +950,27 @@ export class MarangatuService {
     if (paginaActual >= totalPaginas) return false;
 
     const siguientePagina = paginaActual + 1;
-    logger.info(`Navegando a página ${siguientePagina} de ${totalPaginas} (consulta)`);
+    logger.info(`Navegando a página ${siguientePagina} de ${totalPaginas} (consulta)`, {
+      paginaActual,
+      totalPaginas,
+    });
+
+    // Log de debug: qué estructura de paginación hay en el DOM
+    const paginacionDebug = await page.evaluate(() => {
+      const uls = Array.from(document.querySelectorAll('ul.pagination'));
+      return uls.map((ul, i) => {
+        const lis = Array.from(ul.querySelectorAll('li'));
+        return {
+          index: i,
+          items: lis.map((li) => ({
+            text: li.querySelector('a')?.textContent?.trim() ?? '',
+            classes: li.className,
+            isActive: li.classList.contains('active') || li.classList.contains('page-item') && li.classList.contains('active'),
+          })),
+        };
+      });
+    });
+    logger.debug('Estructura de paginación en el DOM', { paginacion: JSON.stringify(paginacionDebug) });
 
     // Click en el link de la página siguiente
     const clickOk = await page.evaluate((targetPage: number) => {
@@ -942,24 +1010,15 @@ export class MarangatuService {
       }
     }
 
-    // Esperar que la página activa cambie
-    logger.debug(`Esperando que la página activa cambie a ${siguientePagina}...`);
-    await page.waitForFunction(
-      (expected: number) => {
-        const allLists = Array.from(document.querySelectorAll('ul.pagination'));
-        for (const ul of allLists) {
-          const active = ul.querySelector('li.active a, li.page-item.active a, li.page-item.active a.page-link');
-          if (active && parseInt(active.textContent?.trim() ?? '0', 10) === expected) return true;
-        }
-        return false;
-      },
-      { timeout: 60000 },
-      siguientePagina
-    );
-    logger.debug(`Página ${siguientePagina} activa, esperando recarga de tabla...`);
+    // Esperar que los datos cambien o que la paginación activa cambie.
+    // Priorizamos detectar cambio de datos (más confiable que selectores de paginación
+    // que pueden variar entre páginas de Marangatu).
+    logger.debug(`Esperando que los datos cambien tras click a página ${siguientePagina}...`);
 
-    // Esperar a que los datos de la tabla cambien (primera fila diferente a la anterior)
     if (primeraFilaAnterior) {
+      // Esperar SOLO a que los datos de la tabla cambien (primera fila diferente).
+      // NO usar paginación activa como condición alternativa: el li.active cambia
+      // antes de que Angular re-renderice la tabla, causando lectura duplicada.
       await page.waitForFunction(
         (filaAnterior: string) => {
           const tables = Array.from(document.querySelectorAll('table'));
@@ -967,7 +1026,6 @@ export class MarangatuService {
           if (!table) return false;
           const tds = Array.from(table.querySelectorAll('tbody tr:first-child td'));
           const cells = tds.map((td) => td.textContent?.trim() ?? '');
-          // Comparar número comprobante (col 8) + CDC (col 11)
           const filaActual = (cells[8] ?? '') + '|' + (cells[11] ?? '');
           return filaActual !== filaAnterior;
         },
@@ -975,11 +1033,12 @@ export class MarangatuService {
         primeraFilaAnterior
       );
     } else {
-      // Fallback: esperar 5s si no tenemos fila anterior
+      // Sin fila anterior: esperar tiempo prudencial para que Angular cargue
       await new Promise((r) => setTimeout(r, 5000));
     }
 
-    await this.waitForAngular(page, 500);
+    // Esperar digest cycle de Angular después del cambio de datos
+    await this.waitForAngular(page, 1000);
     logger.info(`Página ${siguientePagina} cargada con datos nuevos`);
     return true;
   }

@@ -115,10 +115,10 @@ export async function findTenantWithConfig(tenantId: string): Promise<TenantWith
 
 export async function createTenantConfig(
   tenantId: string,
-  input: Required<Pick<UpsertTenantConfigInput, 'ruc_login' | 'usuario_marangatu' | 'clave_marangatu'>> &
-    Omit<UpsertTenantConfigInput, 'ruc_login' | 'usuario_marangatu' | 'clave_marangatu'>
+  input: Required<Pick<UpsertTenantConfigInput, 'ruc_login'>> &
+    Omit<UpsertTenantConfigInput, 'ruc_login'>
 ): Promise<TenantConfig> {
-  const claveEncrypted = encrypt(input.clave_marangatu);
+  const claveEncrypted = input.clave_marangatu ? encrypt(input.clave_marangatu) : null;
   const passwordEncrypted = input.ords_password ? encrypt(input.ords_password) : null;
   const tokenEncrypted = input.ords_token ? encrypt(input.ords_token) : null;
   const clientSecretEncrypted = input.ords_client_secret ? encrypt(input.ords_client_secret) : null;
@@ -137,7 +137,7 @@ export async function createTenantConfig(
     [
       tenantId,
       input.ruc_login,
-      input.usuario_marangatu,
+      input.usuario_marangatu ?? null,
       claveEncrypted,
       input.marangatu_base_url ?? 'https://marangatu.set.gov.py',
       input.ords_base_url ?? null,
@@ -253,14 +253,12 @@ export async function upsertTenantConfig(
   if (existing) {
     return updateTenantConfig(tenantId, input);
   }
-  if (!input.ruc_login || !input.usuario_marangatu || !input.clave_marangatu) {
-    throw new Error('Para crear la configuración se requieren ruc_login, usuario_marangatu y clave_marangatu');
+  if (!input.ruc_login) {
+    throw new Error('Para crear la configuración se requiere ruc_login');
   }
   return createTenantConfig(tenantId, {
     ...input,
     ruc_login: input.ruc_login,
-    usuario_marangatu: input.usuario_marangatu,
-    clave_marangatu: input.clave_marangatu,
   });
 }
 
@@ -272,7 +270,7 @@ export function decryptTenantConfig(config: TenantConfig): TenantConfig & {
 } {
   return {
     ...config,
-    clave_marangatu: decrypt(config.clave_marangatu_encrypted),
+    clave_marangatu: config.clave_marangatu_encrypted ? decrypt(config.clave_marangatu_encrypted) : '',
     ords_password: config.ords_password_encrypted
       ? decrypt(config.ords_password_encrypted)
       : undefined,

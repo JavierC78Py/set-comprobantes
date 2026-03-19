@@ -147,14 +147,10 @@ export function TenantForm({ initialData, onSubmit, loading }: TenantFormProps) 
     if (!form.nombre_fantasia.trim()) newErrors.nombre_fantasia = 'Requerido';
     if (!form.ruc.trim()) newErrors.ruc = 'Requerido';
     if (!form.config.ruc_login.trim()) newErrors.ruc_login = 'Requerido';
-    if (!form.config.usuario_marangatu.trim()) newErrors.usuario_marangatu = 'Requerido';
-    if (!initialData && !form.config.clave_marangatu.trim())
-      newErrors.clave_marangatu = 'Requerido al crear';
     setErrors(newErrors);
     if (Object.keys(newErrors).length > 0) {
       if (newErrors.nombre_fantasia || newErrors.ruc) setTab('general');
-      else if (newErrors.ruc_login || newErrors.usuario_marangatu || newErrors.clave_marangatu)
-        setTab('marangatu');
+      else if (newErrors.ruc_login) setTab('marangatu');
       return false;
     }
     return true;
@@ -223,6 +219,12 @@ export function TenantForm({ initialData, onSubmit, loading }: TenantFormProps) 
               Credenciales para acceso al portal Marangatu SET Paraguay. Las contraseñas se
               cifran con AES-256 antes de almacenarse.
             </div>
+            {!form.config.usuario_marangatu && !form.config.clave_marangatu && (
+              <div className="text-xs text-amber-600 p-3 bg-amber-50 rounded-lg border border-amber-200">
+                Sin credenciales Marangatu, la empresa no participará en las sincronizaciones automáticas.
+                Pueden completarse después.
+              </div>
+            )}
             <Field label="RUC de login" required error={errors.ruc_login}>
               <input
                 className="input font-mono"
@@ -231,7 +233,7 @@ export function TenantForm({ initialData, onSubmit, loading }: TenantFormProps) 
                 placeholder="80012345-6"
               />
             </Field>
-            <Field label="Usuario Marangatu" required error={errors.usuario_marangatu}>
+            <Field label="Usuario Marangatu" hint="Puede completarse después">
               <input
                 className="input"
                 value={form.config.usuario_marangatu}
@@ -241,8 +243,7 @@ export function TenantForm({ initialData, onSubmit, loading }: TenantFormProps) 
             </Field>
             <Field
               label={initialData ? 'Clave Marangatu (dejar vacío para no cambiar)' : 'Clave Marangatu'}
-              required={!initialData}
-              error={errors.clave_marangatu}
+              hint="Puede completarse después"
             >
               <PasswordInput
                 value={form.config.clave_marangatu}

@@ -19,6 +19,14 @@ async function enqueueScheduledSyncs(): Promise<void> {
       const tenantConfig = await findTenantConfig(tenant.id);
       if (!tenantConfig) continue;
 
+      // Saltar tenants sin credenciales Marangatu configuradas
+      if (!tenantConfig.usuario_marangatu || !tenantConfig.clave_marangatu_encrypted) {
+        logger.debug('Scheduler: tenant sin credenciales Marangatu, saltando', {
+          tenant_id: tenant.id,
+        });
+        continue;
+      }
+
       const frecuenciaMinutos = tenantConfig.frecuencia_sincronizacion_minutos ?? 60;
 
       const active = await countActiveJobsForTenant(tenant.id, 'SYNC_COMPROBANTES');

@@ -25,7 +25,7 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
-  { id: 'tenants', label: 'Empresas', icon: <Building2 className="w-4 h-4" />, adminOnly: true },
+  { id: 'tenants', label: 'Empresas', icon: <Building2 className="w-4 h-4" /> },
   { id: 'jobs', label: 'Jobs', icon: <Briefcase className="w-4 h-4" /> },
   { id: 'comprobantes', label: 'Comprobantes', icon: <FileText className="w-4 h-4" /> },
   { id: 'users', label: 'Usuarios', icon: <Users className="w-4 h-4" />, adminOnly: true },

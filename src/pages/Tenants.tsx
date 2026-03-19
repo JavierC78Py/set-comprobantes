@@ -16,6 +16,7 @@ import {
   Code2,
   AlertCircle,
   Clock,
+  KeyRound,
 } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { Badge } from '../components/ui/Badge';
@@ -27,6 +28,7 @@ import { SyncModal } from '../components/tenants/SyncModal';
 import { ConsultaModal } from '../components/tenants/ConsultaModal';
 import { api } from '../lib/api';
 import { formatDateTime, formatRelative } from '../lib/utils';
+import { useAuth } from '../contexts/AuthContext';
 import type { Tenant, TenantWithConfig } from '../types';
 import type { Page } from '../components/layout/Sidebar';
 
@@ -47,6 +49,7 @@ export function Tenants({
   initialAction,
   onNavigate,
 }: TenantsProps) {
+  const { isAdmin } = useAuth();
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -68,6 +71,10 @@ export function Tenants({
   const [xmlModalOpen, setXmlModalOpen] = useState(false);
   const [xmlLoading, setXmlLoading] = useState(false);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [togglingTenant, setTogglingTenant] = useState<string | null>(null);
+  const [credsModalOpen, setCredsModalOpen] = useState(false);
+  const [credsForm, setCredsForm] = useState({ usuario_marangatu: '', clave_marangatu: '' });
+  const [credsLoading, setCredsLoading] = useState(false);
   const [tenantStats, setTenantStats] = useState<{
     total: number; con_xml: number; enviados_ords: number; pendientes_ords: number; fallidos_ords: number;
   } | null>(null);
@@ -206,6 +213,58 @@ export function Tenants({
     }
   };
 
+  const openCredsModal = () => {
+    setCredsForm({
+      usuario_marangatu: selectedTenant?.config?.usuario_marangatu || '',
+      clave_marangatu: '',
+    });
+    setCredsModalOpen(true);
+  };
+
+  const handleSaveCreds = async () => {
+    if (!selectedId) return;
+    if (!credsForm.usuario_marangatu.trim()) {
+      toastError('El usuario Marangatu es requerido');
+      return;
+    }
+    setCredsLoading(true);
+    try {
+      const config: Record<string, string> = {
+        usuario_marangatu: credsForm.usuario_marangatu,
+      };
+      if (credsForm.clave_marangatu.trim()) {
+        config.clave_marangatu = credsForm.clave_marangatu;
+      }
+      await api.tenants.update(selectedId, { config });
+      toastSuccess('Credenciales actualizadas');
+      setCredsModalOpen(false);
+      await loadDetail(selectedId);
+    } catch (e: unknown) {
+      toastError('Error al guardar credenciales', e instanceof Error ? e.message : undefined);
+    } finally {
+      setCredsLoading(false);
+    }
+  };
+
+  const handleToggleActivo = async (tenantId: string, currentActivo: boolean) => {
+    setTogglingTenant(tenantId);
+    try {
+      await api.tenants.update(tenantId, { activo: !currentActivo });
+      toastSuccess(
+        !currentActivo ? 'Empresa activada' : 'Empresa desactivada',
+        !currentActivo ? 'Participará en sincronizaciones automáticas' : 'No participará en sincronizaciones automáticas'
+      );
+      await loadList(true);
+      if (selectedId === tenantId && selectedTenant) {
+        setSelectedTenant({ ...selectedTenant, activo: !currentActivo });
+      }
+    } catch (e: unknown) {
+      toastError('Error al cambiar estado', e instanceof Error ? e.message : undefined);
+    } finally {
+      setTogglingTenant(null);
+    }
+  };
+
   const handleDescargarXml = async () => {
     if (!selectedId) return;
     setXmlLoading(true);
@@ -246,10 +305,12 @@ export function Tenants({
         onRefresh={() => loadList(true)}
         refreshing={refreshing}
         actions={
-          <button onClick={() => setView('create')} className="btn-md btn-primary">
-            <Plus className="w-3.5 h-3.5" />
-            Nueva empresa
-          </button>
+          isAdmin ? (
+            <button onClick={() => setView('create')} className="btn-md btn-primary">
+              <Plus className="w-3.5 h-3.5" />
+              Nueva empresa
+            </button>
+          ) : undefined
         }
       />
 
@@ -282,11 +343,13 @@ export function Tenants({
             <EmptyState
               icon={<Building2 className="w-5 h-5" />}
               title="Sin empresas"
-              description="Registrá la primera empresa para comenzar a sincronizar comprobantes"
+              description={isAdmin ? 'Registrá la primera empresa para comenzar a sincronizar comprobantes' : 'No tenés empresas asignadas'}
               action={
-                <button onClick={() => setView('create')} className="btn-md btn-primary">
-                  <Plus className="w-3.5 h-3.5" /> Nueva empresa
-                </button>
+                isAdmin ? (
+                  <button onClick={() => setView('create')} className="btn-md btn-primary">
+                    <Plus className="w-3.5 h-3.5" /> Nueva empresa
+                  </button>
+                ) : undefined
               }
             />
           ) : (
@@ -298,7 +361,7 @@ export function Tenants({
                     <th className="table-th">RUC</th>
                     <th className="table-th">Estado</th>
                     <th className="table-th hidden lg:table-cell">Creado</th>
-                    <th className="table-th w-10" />
+                    {isAdmin && <th className="table-th w-10" />}
                   </tr>
                 </thead>
                 <tbody>
@@ -336,47 +399,65 @@ export function Tenants({
                       <td className="table-td hidden lg:table-cell text-zinc-400 text-xs">
                         {formatRelative(tenant.created_at)}
                       </td>
-                      <td className="table-td">
-                        <div className="relative">
-                          <button
-                            onClick={() =>
-                              setOpenMenu(openMenu === tenant.id ? null : tenant.id)
-                            }
-                            className="btn-sm btn-ghost px-2"
-                          >
-                            <MoreHorizontal className="w-3.5 h-3.5" />
-                          </button>
-                          {openMenu === tenant.id && (
-                            <>
-                              <div
-                                className="fixed inset-0 z-10"
-                                onClick={() => setOpenMenu(null)}
-                              />
-                              <div className="absolute right-0 top-8 z-20 w-44 card shadow-md py-1 animate-fade-in">
-                                <button
-                                  onClick={() => {
-                                    setSelectedId(tenant.id);
-                                    setSyncModalOpen(true);
-                                    setOpenMenu(null);
-                                  }}
-                                  className="w-full text-left flex items-center gap-2 px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50"
-                                >
-                                  <Play className="w-3.5 h-3.5" /> Sincronizar
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    openDetail(tenant.id);
-                                    setOpenMenu(null);
-                                  }}
-                                  className="w-full text-left flex items-center gap-2 px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50"
-                                >
-                                  <Settings className="w-3.5 h-3.5" /> Ver detalles
-                                </button>
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      </td>
+                      {isAdmin && (
+                        <td className="table-td">
+                          <div className="relative">
+                            <button
+                              onClick={() =>
+                                setOpenMenu(openMenu === tenant.id ? null : tenant.id)
+                              }
+                              className="btn-sm btn-ghost px-2"
+                            >
+                              <MoreHorizontal className="w-3.5 h-3.5" />
+                            </button>
+                            {openMenu === tenant.id && (
+                              <>
+                                <div
+                                  className="fixed inset-0 z-10"
+                                  onClick={() => setOpenMenu(null)}
+                                />
+                                <div className="absolute right-0 top-8 z-20 w-44 card shadow-md py-1 animate-fade-in">
+                                  <button
+                                    onClick={() => {
+                                      setSelectedId(tenant.id);
+                                      setSyncModalOpen(true);
+                                      setOpenMenu(null);
+                                    }}
+                                    className="w-full text-left flex items-center gap-2 px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50"
+                                  >
+                                    <Play className="w-3.5 h-3.5" /> Sincronizar
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      openDetail(tenant.id);
+                                      setOpenMenu(null);
+                                    }}
+                                    className="w-full text-left flex items-center gap-2 px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50"
+                                  >
+                                    <Settings className="w-3.5 h-3.5" /> Ver detalles
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      handleToggleActivo(tenant.id, tenant.activo);
+                                      setOpenMenu(null);
+                                    }}
+                                    disabled={togglingTenant === tenant.id}
+                                    className={`w-full text-left flex items-center gap-2 px-3 py-2 text-sm hover:bg-zinc-50 ${
+                                      tenant.activo ? 'text-amber-600' : 'text-emerald-600'
+                                    }`}
+                                  >
+                                    {tenant.activo ? (
+                                      <><X className="w-3.5 h-3.5" /> Desactivar</>
+                                    ) : (
+                                      <><Play className="w-3.5 h-3.5" /> Activar</>
+                                    )}
+                                  </button>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -424,43 +505,78 @@ export function Tenants({
                     </h2>
                     <div className="flex items-center gap-3 mt-1">
                       <span className="tag">{selectedTenant.ruc}</span>
-                      <Badge variant={selectedTenant.activo ? 'success' : 'neutral'} dot>
-                        {selectedTenant.activo ? 'Activo' : 'Inactivo'}
-                      </Badge>
+                      {isAdmin ? (
+                        <button
+                          onClick={() => handleToggleActivo(selectedTenant.id, selectedTenant.activo)}
+                          disabled={togglingTenant === selectedTenant.id}
+                          className="flex items-center gap-2 group"
+                          title={selectedTenant.activo ? 'Click para desactivar' : 'Click para activar'}
+                        >
+                          <span
+                            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                              selectedTenant.activo ? 'bg-emerald-500' : 'bg-zinc-300'
+                            }`}
+                          >
+                            <span
+                              className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                                selectedTenant.activo ? 'translate-x-4' : 'translate-x-0.5'
+                              }`}
+                            />
+                          </span>
+                          <span className={`text-xs font-medium ${selectedTenant.activo ? 'text-emerald-600' : 'text-zinc-400'}`}>
+                            {selectedTenant.activo ? 'Activa' : 'Inactiva'}
+                          </span>
+                        </button>
+                      ) : (
+                        <Badge variant={selectedTenant.activo ? 'success' : 'neutral'} dot>
+                          {selectedTenant.activo ? 'Activa' : 'Inactiva'}
+                        </Badge>
+                      )}
                     </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setSyncModalOpen(true)}
-                    className="btn-md btn-emerald"
-                  >
-                    <Play className="w-3.5 h-3.5" /> Sincronizar
-                  </button>
-                  <button
-                    onClick={() => setConsultaModalOpen(true)}
-                    className="btn-md btn-emerald"
-                  >
-                    <Play className="w-3.5 h-3.5" /> Periodo específico
-                  </button>
-                  <button
-                    onClick={() => setXmlModalOpen(true)}
-                    className="btn-md btn-secondary"
-                  >
-                    <Download className="w-3.5 h-3.5" /> Descargar XML
-                  </button>
-                  <button
-                    onClick={() => setOrdsModalOpen(true)}
-                    className="btn-md btn-secondary"
-                  >
-                    <Send className="w-3.5 h-3.5" /> Enviar a ORDS
-                  </button>
-                  <button
-                    onClick={() => setView('edit')}
-                    className="btn-md btn-secondary"
-                  >
-                    <Edit3 className="w-3.5 h-3.5" /> Editar
-                  </button>
+                  {isAdmin ? (
+                    <>
+                      <button
+                        onClick={() => setSyncModalOpen(true)}
+                        className="btn-md btn-emerald"
+                      >
+                        <Play className="w-3.5 h-3.5" /> Sincronizar
+                      </button>
+                      <button
+                        onClick={() => setConsultaModalOpen(true)}
+                        className="btn-md btn-emerald"
+                      >
+                        <Play className="w-3.5 h-3.5" /> Periodo específico
+                      </button>
+                      <button
+                        onClick={() => setXmlModalOpen(true)}
+                        className="btn-md btn-secondary"
+                      >
+                        <Download className="w-3.5 h-3.5" /> Descargar XML
+                      </button>
+                      <button
+                        onClick={() => setOrdsModalOpen(true)}
+                        className="btn-md btn-secondary"
+                      >
+                        <Send className="w-3.5 h-3.5" /> Enviar a ORDS
+                      </button>
+                      <button
+                        onClick={() => setView('edit')}
+                        className="btn-md btn-secondary"
+                      >
+                        <Edit3 className="w-3.5 h-3.5" /> Editar
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={openCredsModal}
+                      className="btn-md btn-primary"
+                    >
+                      <KeyRound className="w-3.5 h-3.5" /> Configurar credenciales
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -790,6 +906,62 @@ export function Tenants({
               }`}
             />
           </button>
+        </div>
+      </Modal>
+
+      {/* Modal credenciales Marangatu (para usuarios no-admin) */}
+      <Modal
+        open={credsModalOpen}
+        onClose={() => setCredsModalOpen(false)}
+        title="Credenciales Marangatu"
+        description={activeTenantName}
+        size="sm"
+        footer={
+          <>
+            <button
+              onClick={() => setCredsModalOpen(false)}
+              className="btn-md btn-secondary"
+              disabled={credsLoading}
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleSaveCreds}
+              disabled={credsLoading}
+              className="btn-md btn-primary"
+            >
+              {credsLoading && <Spinner size="xs" />}
+              Guardar
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <div className="text-xs text-zinc-500 p-3 bg-zinc-50 rounded-lg border border-zinc-200">
+            Las credenciales se cifran con AES-256 antes de almacenarse.
+          </div>
+          <div>
+            <label className="label">Usuario Marangatu</label>
+            <input
+              className="input"
+              value={credsForm.usuario_marangatu}
+              onChange={(e) => setCredsForm((f) => ({ ...f, usuario_marangatu: e.target.value }))}
+              placeholder="mi_usuario_set"
+            />
+          </div>
+          <div>
+            <label className="label">
+              {selectedTenant?.config?.clave_marangatu_encrypted ? 'Clave Marangatu (dejar vacío para no cambiar)' : 'Clave Marangatu'}
+            </label>
+            <input
+              type="password"
+              className="input"
+              value={credsForm.clave_marangatu}
+              onChange={(e) => setCredsForm((f) => ({ ...f, clave_marangatu: e.target.value }))}
+              placeholder={selectedTenant?.config?.clave_marangatu_encrypted ? '(sin cambios)' : '••••••••'}
+              autoComplete="new-password"
+            />
+          </div>
         </div>
       </Modal>
     </div>

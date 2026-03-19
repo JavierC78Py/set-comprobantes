@@ -1,4 +1,5 @@
 import { FastifyInstance } from 'fastify';
+import ExcelJS from 'exceljs';
 import {
   findComprobantesByTenant,
   findComprobanteById,
@@ -103,6 +104,100 @@ function comprobanteToTxtLines(c: Comprobante): string {
 
   lines.push(``, `Generado: ${new Date().toISOString()}`);
   return lines.join('\n');
+}
+
+async function comprobantesToExcel(
+  data: Comprobante[]
+): Promise<Buffer> {
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'SET Comprobantes';
+  wb.created = new Date();
+
+  const ws = wb.addWorksheet('Comprobantes');
+
+  // Columnas
+  ws.columns = [
+    { header: 'Nro. Comprobante', key: 'numero_comprobante', width: 25 },
+    { header: 'CDC', key: 'cdc', width: 48 },
+    { header: 'Tipo', key: 'tipo_comprobante', width: 16 },
+    { header: 'Origen', key: 'origen', width: 14 },
+    { header: 'Fecha Emisión', key: 'fecha_emision', width: 14 },
+    { header: 'RUC Vendedor', key: 'ruc_vendedor', width: 16 },
+    { header: 'Razón Social Vendedor', key: 'razon_social_vendedor', width: 35 },
+    { header: 'Total Operación', key: 'total_operacion', width: 18 },
+    { header: 'XML Descargado', key: 'xml_descargado', width: 14 },
+    { header: 'Estado ORDS', key: 'estado_envio_ords', width: 14 },
+    { header: 'Exentas', key: 'exentas', width: 16 },
+    { header: 'IVA 5%', key: 'subtotal_iva5', width: 16 },
+    { header: 'IVA 10%', key: 'subtotal_iva10', width: 16 },
+    { header: 'Liq. IVA 5%', key: 'iva5', width: 14 },
+    { header: 'Liq. IVA 10%', key: 'iva10', width: 14 },
+    { header: 'Total IVA', key: 'iva_total', width: 14 },
+  ];
+
+  // Estilo del header
+  const headerRow = ws.getRow(1);
+  headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+  headerRow.fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FF2563EB' },
+  };
+  headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
+
+  // Datos
+  for (const c of data) {
+    const d = c.detalles_xml;
+    ws.addRow({
+      numero_comprobante: c.numero_comprobante,
+      cdc: c.cdc ?? '',
+      tipo_comprobante: c.tipo_comprobante,
+      origen: c.origen,
+      fecha_emision: c.fecha_emision
+        ? new Date(c.fecha_emision).toLocaleDateString('es-PY')
+        : '',
+      ruc_vendedor: c.ruc_vendedor,
+      razon_social_vendedor: c.razon_social_vendedor ?? '',
+      total_operacion: Number(c.total_operacion) || 0,
+      xml_descargado: c.xml_descargado_at ? 'Sí' : 'No',
+      estado_envio_ords: (c as unknown as Record<string, unknown>).estado_envio_ords as string ?? '—',
+      exentas: d?.totales?.exentas ?? 0,
+      subtotal_iva5: d?.totales?.subtotalIva5 ?? 0,
+      subtotal_iva10: d?.totales?.subtotalIva10 ?? 0,
+      iva5: d?.totales?.iva5 ?? 0,
+      iva10: d?.totales?.iva10 ?? 0,
+      iva_total: d?.totales?.ivaTotal ?? 0,
+    });
+  }
+
+  // Formato numérico para columnas de montos
+  const numCols = ['total_operacion', 'exentas', 'subtotal_iva5', 'subtotal_iva10', 'iva5', 'iva10', 'iva_total'];
+  for (const key of numCols) {
+    const col = ws.getColumn(key);
+    col.numFmt = '#,##0';
+    col.alignment = { horizontal: 'right' };
+  }
+
+  // Autofiltro
+  ws.autoFilter = {
+    from: { row: 1, column: 1 },
+    to: { row: data.length + 1, column: ws.columns.length },
+  };
+
+  // Filas alternas con color
+  for (let i = 2; i <= data.length + 1; i++) {
+    if (i % 2 === 0) {
+      const row = ws.getRow(i);
+      row.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFF1F5F9' },
+      };
+    }
+  }
+
+  const buffer = await wb.xlsx.writeBuffer();
+  return Buffer.from(buffer);
 }
 
 export async function comprobanteRoutes(app: FastifyInstance): Promise<void> {
@@ -304,6 +399,14 @@ export async function comprobanteRoutes(app: FastifyInstance): Promise<void> {
       const fmt = formato.toLowerCase();
       const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
       const filename = `comprobantes_${tenant.ruc}_${ts}`;
+
+      if (fmt === 'xlsx') {
+        const buffer = await comprobantesToExcel(data);
+        return reply
+          .header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+          .header('Content-Disposition', `attachment; filename="${filename}.xlsx"`)
+          .send(buffer);
+      }
 
       if (fmt === 'txt') {
         const lines: string[] = [

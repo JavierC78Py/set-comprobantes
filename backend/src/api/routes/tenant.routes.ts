@@ -1,5 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
+import { logger } from '../../config/logger';
 import {
   findAllTenants,
   findTenantById,
@@ -23,8 +24,8 @@ const createTenantSchema = z.object({
   timezone: optionalString,
   config: z.object({
     ruc_login: z.string().min(3),
-    usuario_marangatu: z.string().min(1),
-    clave_marangatu: z.string().min(1),
+    usuario_marangatu: z.string().min(1).optional().or(emptyToUndefined),
+    clave_marangatu: z.string().min(1).optional().or(emptyToUndefined),
     marangatu_base_url: optionalUrl,
     ords_base_url: optionalUrl,
     ords_endpoint_facturas: optionalString,
@@ -69,9 +70,16 @@ const updateTenantSchema = z.object({
 export async function tenantRoutes(app: FastifyInstance): Promise<void> {
   app.get('/tenants', async (req, reply) => {
     let tenants = await findAllTenants();
+    logger.info('GET /tenants', {
+      user: req.currentUser?.username,
+      rol: req.currentUser?.rol,
+      allowedTenants: req.allowedTenants,
+      totalBefore: tenants.length,
+    });
     if (req.allowedTenants) {
       tenants = tenants.filter((t) => req.allowedTenants!.includes(t.id));
     }
+    logger.info('GET /tenants filtered', { totalAfter: tenants.length });
     return reply.send({ data: tenants, total: tenants.length });
   });
 
@@ -101,11 +109,6 @@ export async function tenantRoutes(app: FastifyInstance): Promise<void> {
     const tenant = await createTenant(tenantInput);
 
     if (configInput) {
-      if (!configInput.ruc_login || !configInput.usuario_marangatu || !configInput.clave_marangatu) {
-        return reply.status(400).send({
-          error: 'Al crear un tenant, config requiere ruc_login, usuario_marangatu y clave_marangatu',
-        });
-      }
       await upsertTenantConfig(tenant.id, {
         ruc_login: configInput.ruc_login,
         usuario_marangatu: configInput.usuario_marangatu,
@@ -141,6 +144,25 @@ export async function tenantRoutes(app: FastifyInstance): Promise<void> {
     }
 
     const { config: configInput, ...tenantInput } = parsed.data;
+
+    // Usuarios no-admin: solo pueden cambiar credenciales Marangatu
+    if (req.currentUser.rol !== 'ADMIN') {
+      // No pueden cambiar datos del tenant (nombre, activo, etc.)
+      if (tenantInput.nombre_fantasia || tenantInput.email_contacto || tenantInput.timezone || tenantInput.activo !== undefined) {
+        return reply.status(403).send({ error: 'Solo un administrador puede modificar los datos de la empresa' });
+      }
+      // En config, solo pueden cambiar usuario_marangatu y clave_marangatu
+      if (configInput) {
+        const allowedKeys = new Set(['usuario_marangatu', 'clave_marangatu']);
+        const configKeys = Object.keys(configInput).filter((k) => (configInput as Record<string, unknown>)[k] !== undefined);
+        const forbidden = configKeys.filter((k) => !allowedKeys.has(k));
+        if (forbidden.length > 0) {
+          return reply.status(403).send({
+            error: 'Solo podés modificar el usuario y la clave de Marangatu',
+          });
+        }
+      }
+    }
     const tenant = await updateTenant(req.params.id, tenantInput);
 
     if (configInput) {

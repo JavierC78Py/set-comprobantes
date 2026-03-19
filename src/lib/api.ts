@@ -183,12 +183,26 @@ export const api = {
       if (MOCK_MODE) return mockStore.getComprobante(tenantId, comprobanteId);
       return request<{ data: Comprobante }>(`/tenants/${tenantId}/comprobantes/${comprobanteId}`).then((r) => r.data);
     },
-    downloadUrl: (tenantId: string, comprobanteId: string, formato: 'json' | 'txt' | 'xml'): string => {
-      return `${BASE_URL}/tenants/${tenantId}/comprobantes/${comprobanteId}/descargar?formato=${formato}`;
+    downloadFile: async (tenantId: string, comprobanteId: string, formato: 'json' | 'txt' | 'xml'): Promise<void> => {
+      const url = `${BASE_URL}/tenants/${tenantId}/comprobantes/${comprobanteId}/descargar?formato=${formato}`;
+      const token = localStorage.getItem(TOKEN_KEY);
+      const res = await fetch(url, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error(`Error al descargar: ${res.status}`);
+      const blob = await res.blob();
+      const disposition = res.headers.get('Content-Disposition') ?? '';
+      const match = disposition.match(/filename="?([^"]+)"?/);
+      const filename = match?.[1] ?? `comprobante.${formato}`;
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(a.href);
     },
-    exportUrl: (
+    exportDownload: async (
       tenantId: string,
-      formato: 'json' | 'txt',
+      formato: 'json' | 'txt' | 'xlsx',
       params?: {
         fecha_desde?: string;
         fecha_hasta?: string;
@@ -196,14 +210,28 @@ export const api = {
         ruc_vendedor?: string;
         xml_descargado?: boolean;
       }
-    ): string => {
+    ): Promise<void> => {
       const q = new URLSearchParams({ formato });
       if (params?.fecha_desde) q.set('fecha_desde', params.fecha_desde);
       if (params?.fecha_hasta) q.set('fecha_hasta', params.fecha_hasta);
       if (params?.tipo_comprobante) q.set('tipo_comprobante', params.tipo_comprobante);
       if (params?.ruc_vendedor) q.set('ruc_vendedor', params.ruc_vendedor);
       if (params?.xml_descargado !== undefined) q.set('xml_descargado', String(params.xml_descargado));
-      return `${BASE_URL}/tenants/${tenantId}/comprobantes/exportar?${q.toString()}`;
+      const url = `${BASE_URL}/tenants/${tenantId}/comprobantes/exportar?${q.toString()}`;
+      const token = localStorage.getItem(TOKEN_KEY);
+      const res = await fetch(url, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error(`Error al exportar: ${res.status}`);
+      const blob = await res.blob();
+      const disposition = res.headers.get('Content-Disposition') ?? '';
+      const match = disposition.match(/filename="?([^"]+)"?/);
+      const filename = match?.[1] ?? `comprobantes.${formato}`;
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(a.href);
     },
   },
 

@@ -46,7 +46,7 @@ function AuthenticatedApp() {
 
   const navigate = useCallback((p: Page, params?: Record<string, string>) => {
     // Prevent non-admin from accessing admin pages
-    if (!isAdmin && (p === 'tenants' || p === 'users')) {
+    if (!isAdmin && p === 'users') {
       p = 'dashboard';
     }
     setPage(p);
@@ -71,7 +71,7 @@ function AuthenticatedApp() {
         {page === 'dashboard' && (
           <Dashboard onNavigate={navigate} />
         )}
-        {page === 'tenants' && isAdmin && (
+        {page === 'tenants' && (
           <Tenants
             onNavigate={navigate}
             toastSuccess={success}
