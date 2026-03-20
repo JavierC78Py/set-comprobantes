@@ -328,7 +328,7 @@ export function Tenants({
               {search && (
                 <button
                   onClick={() => setSearch('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -355,7 +355,7 @@ export function Tenants({
           ) : (
             <div className="card overflow-hidden">
               <table className="w-full">
-                <thead className="bg-zinc-50 border-b border-zinc-200">
+                <thead className="bg-zinc-50 dark:bg-zinc-800 border-b border-zinc-200 dark:border-zinc-700">
                   <tr>
                     <th className="table-th">Empresa</th>
                     <th className="table-th">RUC</th>
@@ -372,20 +372,20 @@ export function Tenants({
                           onClick={() => openDetail(tenant.id)}
                           className="flex items-center gap-3 group"
                         >
-                          <div className="w-8 h-8 rounded-lg bg-zinc-100 flex items-center justify-center flex-shrink-0">
-                            <span className="text-xs font-bold text-zinc-600">
+                          <div className="w-8 h-8 rounded-lg bg-zinc-100 dark:bg-zinc-700 flex items-center justify-center flex-shrink-0">
+                            <span className="text-xs font-bold text-zinc-600 dark:text-zinc-300">
                               {tenant.nombre_fantasia.slice(0, 2).toUpperCase()}
                             </span>
                           </div>
                           <div className="text-left">
-                            <p className="font-medium text-zinc-900 group-hover:text-zinc-600">
+                            <p className="font-medium text-zinc-900 dark:text-zinc-100 group-hover:text-zinc-600 dark:group-hover:text-zinc-300">
                               {tenant.nombre_fantasia}
                             </p>
                             {tenant.email_contacto && (
                               <p className="text-xs text-zinc-400">{tenant.email_contacto}</p>
                             )}
                           </div>
-                          <ChevronRight className="w-3.5 h-3.5 text-zinc-300 opacity-0 group-hover:opacity-100" />
+                          <ChevronRight className="w-3.5 h-3.5 text-zinc-300 dark:text-zinc-600 opacity-0 group-hover:opacity-100" />
                         </button>
                       </td>
                       <td className="table-td">
@@ -423,7 +423,7 @@ export function Tenants({
                                       setSyncModalOpen(true);
                                       setOpenMenu(null);
                                     }}
-                                    className="w-full text-left flex items-center gap-2 px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50"
+                                    className="w-full text-left flex items-center gap-2 px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700"
                                   >
                                     <Play className="w-3.5 h-3.5" /> Sincronizar
                                   </button>
@@ -432,7 +432,7 @@ export function Tenants({
                                       openDetail(tenant.id);
                                       setOpenMenu(null);
                                     }}
-                                    className="w-full text-left flex items-center gap-2 px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50"
+                                    className="w-full text-left flex items-center gap-2 px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700"
                                   >
                                     <Settings className="w-3.5 h-3.5" /> Ver detalles
                                   </button>
@@ -442,7 +442,7 @@ export function Tenants({
                                       setOpenMenu(null);
                                     }}
                                     disabled={togglingTenant === tenant.id}
-                                    className={`w-full text-left flex items-center gap-2 px-3 py-2 text-sm hover:bg-zinc-50 ${
+                                    className={`w-full text-left flex items-center gap-2 px-3 py-2 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-700 ${
                                       tenant.activo ? 'text-amber-600' : 'text-emerald-600'
                                     }`}
                                   >
@@ -473,7 +473,7 @@ export function Tenants({
             <ChevronRight className="w-3.5 h-3.5 rotate-180" /> Volver
           </button>
           <div className="max-w-2xl">
-            <h2 className="text-base font-semibold text-zinc-900 mb-1">Nueva empresa</h2>
+            <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-1">Nueva empresa</h2>
             <p className="text-sm text-zinc-500 mb-6">
               Completá los datos básicos y configurá las credenciales de Marangatu
             </p>
@@ -494,13 +494,13 @@ export function Tenants({
             <div className="space-y-6">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-zinc-100 flex items-center justify-center">
-                    <span className="text-sm font-bold text-zinc-600">
+                  <div className="w-12 h-12 rounded-2xl bg-zinc-100 dark:bg-zinc-700 flex items-center justify-center">
+                    <span className="text-sm font-bold text-zinc-600 dark:text-zinc-300">
                       {selectedTenant.nombre_fantasia.slice(0, 2).toUpperCase()}
                     </span>
                   </div>
                   <div>
-                    <h2 className="text-lg font-semibold text-zinc-900">
+                    <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
                       {selectedTenant.nombre_fantasia}
                     </h2>
                     <div className="flex items-center gap-3 mt-1">
@@ -514,7 +514,7 @@ export function Tenants({
                         >
                           <span
                             className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-                              selectedTenant.activo ? 'bg-emerald-500' : 'bg-zinc-300'
+                              selectedTenant.activo ? 'bg-emerald-500' : 'bg-zinc-300 dark:bg-zinc-600'
                             }`}
                           >
                             <span
@@ -587,7 +587,7 @@ export function Tenants({
                       <FileText className="w-3.5 h-3.5 text-zinc-400" />
                       <p className="text-xs text-zinc-500">Total documentos</p>
                     </div>
-                    <p className="text-xl font-bold text-zinc-900 tabular-nums">
+                    <p className="text-xl font-bold text-zinc-900 dark:text-zinc-100 tabular-nums">
                       {tenantStats.total.toLocaleString()}
                     </p>
                   </div>
@@ -745,7 +745,7 @@ export function Tenants({
 
           {view === 'edit' && (
             <div className="max-w-2xl">
-              <h2 className="text-base font-semibold text-zinc-900 mb-1">
+              <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-1">
                 Editar empresa
               </h2>
               <p className="text-sm text-zinc-500 mb-6">{selectedTenant.nombre_fantasia}</p>
@@ -809,7 +809,7 @@ export function Tenants({
           </>
         }
       >
-        <p className="text-sm text-zinc-600">
+        <p className="text-sm text-zinc-600 dark:text-zinc-300">
           Se encolará un job <span className="tag">DESCARGAR_XML</span> que descargará hasta 20
           XMLs pendientes de eKuatia para esta empresa.
         </p>
@@ -854,13 +854,13 @@ export function Tenants({
           </>
         }
       >
-        <p className="text-sm text-zinc-600">
+        <p className="text-sm text-zinc-600 dark:text-zinc-300">
           Se encolará un job <span className="tag">ENVIAR_A_ORDS</span> que enviará
           los comprobantes con XML descargado a la API ORDS configurada.
         </p>
 
         <div className="mt-4 space-y-3">
-          <p className="text-xs font-medium text-zinc-700">Rango de fechas (opcional)</p>
+          <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300">Rango de fechas (opcional)</p>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label">Desde</label>
@@ -886,10 +886,10 @@ export function Tenants({
           </p>
         </div>
 
-        <div className="mt-4 flex items-center justify-between p-3 bg-amber-50 rounded-lg border border-amber-200">
+        <div className="mt-4 flex items-center justify-between p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
           <div>
-            <p className="text-xs font-medium text-zinc-700">Forzar reenvío</p>
-            <p className="text-xs text-zinc-500 mt-0.5">
+            <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300">Forzar reenvío</p>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
               Reenviar comprobantes ya enviados o fallidos
             </p>
           </div>
@@ -897,7 +897,7 @@ export function Tenants({
             type="button"
             onClick={() => setOrdsForzarReenvio(!ordsForzarReenvio)}
             className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-              ordsForzarReenvio ? 'bg-amber-500' : 'bg-zinc-300'
+              ordsForzarReenvio ? 'bg-amber-500' : 'bg-zinc-300 dark:bg-zinc-600'
             }`}
           >
             <span
@@ -937,7 +937,7 @@ export function Tenants({
         }
       >
         <div className="space-y-4">
-          <div className="text-xs text-zinc-500 p-3 bg-zinc-50 rounded-lg border border-zinc-200">
+          <div className="text-xs text-zinc-500 p-3 bg-zinc-50 dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700">
             Las credenciales se cifran con AES-256 antes de almacenarse.
           </div>
           <div>
@@ -978,7 +978,7 @@ function Row({
   return (
     <div className="flex items-start gap-2">
       <dt className="text-xs text-zinc-500 w-28 flex-shrink-0 pt-0.5">{label}</dt>
-      <dd className="text-sm text-zinc-900 flex-1 min-w-0">
+      <dd className="text-sm text-zinc-900 dark:text-zinc-100 flex-1 min-w-0">
         {typeof value === 'string' ? value : value}
       </dd>
     </div>

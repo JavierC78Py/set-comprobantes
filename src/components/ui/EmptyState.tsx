@@ -12,11 +12,11 @@ export function EmptyState({ icon, title, description, action, className }: Empt
   return (
     <div className={cn('empty-state', className)}>
       {icon && (
-        <div className="w-12 h-12 rounded-2xl bg-zinc-100 flex items-center justify-center mb-4 text-zinc-400">
+        <div className="w-12 h-12 rounded-2xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center mb-4 text-zinc-400">
           {icon}
         </div>
       )}
-      <p className="text-sm font-semibold text-zinc-700">{title}</p>
+      <p className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">{title}</p>
       {description && <p className="text-sm text-zinc-400 mt-1 max-w-sm">{description}</p>}
       {action && <div className="mt-4">{action}</div>}
     </div>

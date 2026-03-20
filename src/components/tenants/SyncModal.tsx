@@ -33,7 +33,7 @@ export function SyncModal({ open, onClose, onSubmit, tenantName, loading }: Sync
         </>
       }
     >
-      <p className="text-sm text-zinc-600">
+      <p className="text-sm text-zinc-600 dark:text-zinc-300">
         Se sincronizarán los comprobantes del mes actual desde
         "Gestión de Comprobantes Informativos" de Marangatu.
       </p>

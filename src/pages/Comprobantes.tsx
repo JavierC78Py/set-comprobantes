@@ -177,12 +177,12 @@ export function Comprobantes({ toastError }: ComprobantesProps) {
 
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className={`btn-md btn-secondary gap-2 ${showFilters ? 'bg-zinc-100' : ''}`}
+              className={`btn-md btn-secondary gap-2 ${showFilters ? 'bg-zinc-100 dark:bg-zinc-700' : ''}`}
             >
               <Filter className="w-3.5 h-3.5" />
               Filtros
               {activeFilters > 0 && (
-                <span className="bg-zinc-900 text-white rounded-full text-[10px] w-4 h-4 flex items-center justify-center">
+                <span className="bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-full text-[10px] w-4 h-4 flex items-center justify-center">
                   {activeFilters}
                 </span>
               )}
@@ -206,7 +206,7 @@ export function Comprobantes({ toastError }: ComprobantesProps) {
                   <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showExport ? 'rotate-180' : ''}`} />
                 </button>
                 {showExport && (
-                  <div className="absolute right-0 top-full mt-1 bg-white border border-zinc-200 rounded-lg shadow-lg z-20 min-w-[160px] py-1 animate-fade-in">
+                  <div className="absolute right-0 top-full mt-1 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-lg z-20 min-w-[160px] py-1 animate-fade-in">
                     {(['xlsx', 'json', 'txt'] as const).map((fmt) => (
                       <button
                         key={fmt}
@@ -224,7 +224,7 @@ export function Comprobantes({ toastError }: ComprobantesProps) {
                             toastError((err as Error).message);
                           }
                         }}
-                        className="flex items-center gap-2.5 px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors w-full text-left"
+                        className="flex items-center gap-2.5 px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors w-full text-left"
                       >
                         {fmt === 'xlsx' && <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-500" />}
                         {fmt === 'json' && <FileJson className="w-3.5 h-3.5 text-zinc-400" />}
@@ -328,7 +328,7 @@ export function Comprobantes({ toastError }: ComprobantesProps) {
       ) : (
         <div className="card overflow-hidden">
           <table className="w-full">
-            <thead className="bg-zinc-50 border-b border-zinc-200">
+            <thead className="bg-zinc-50 dark:bg-zinc-800 border-b border-zinc-200 dark:border-zinc-700">
               <tr>
                 <th className="table-th">Comprobante</th>
                 <th className="table-th">Vendedor</th>
@@ -348,7 +348,7 @@ export function Comprobantes({ toastError }: ComprobantesProps) {
                 >
                   <td className="table-td">
                     <div>
-                      <p className="font-mono text-xs font-medium text-zinc-900">
+                      <p className="font-mono text-xs font-medium text-zinc-900 dark:text-zinc-100">
                         {c.numero_comprobante}
                       </p>
                       {c.cdc && (
@@ -360,7 +360,7 @@ export function Comprobantes({ toastError }: ComprobantesProps) {
                   </td>
                   <td className="table-td">
                     <div>
-                      <p className="text-sm text-zinc-900">
+                      <p className="text-sm text-zinc-900 dark:text-zinc-100">
                         {c.razon_social_vendedor || <span className="text-zinc-400">—</span>}
                       </p>
                       <p className="text-xs font-mono text-zinc-400">{c.ruc_vendedor}</p>
@@ -369,11 +369,11 @@ export function Comprobantes({ toastError }: ComprobantesProps) {
                   <td className="table-td">
                     <TipoComprobanteBadge tipo={c.tipo_comprobante} />
                   </td>
-                  <td className="table-td text-xs text-zinc-600">
+                  <td className="table-td text-xs text-zinc-600 dark:text-zinc-400">
                     {formatDate(c.fecha_emision)}
                   </td>
                   <td className="table-td text-right">
-                    <span className="font-mono text-sm font-medium text-zinc-900">
+                    <span className="font-mono text-sm font-medium text-zinc-900 dark:text-zinc-100">
                       {formatCurrency(c.total_operacion)}
                     </span>
                   </td>
@@ -389,7 +389,7 @@ export function Comprobantes({ toastError }: ComprobantesProps) {
                         <span className="text-xs">Pendiente</span>
                       </span>
                     ) : (
-                      <span className="flex items-center gap-1 text-zinc-300">
+                      <span className="flex items-center gap-1 text-zinc-300 dark:text-zinc-600">
                         <X className="w-3.5 h-3.5" />
                         <span className="text-xs">Sin CDC</span>
                       </span>
@@ -412,7 +412,7 @@ export function Comprobantes({ toastError }: ComprobantesProps) {
                         <span className="text-xs">Fallido</span>
                       </span>
                     ) : (
-                      <span className="flex items-center gap-1 text-zinc-300">
+                      <span className="flex items-center gap-1 text-zinc-300 dark:text-zinc-600">
                         <Circle className="w-3.5 h-3.5" />
                         <span className="text-xs">—</span>
                       </span>
@@ -440,15 +440,15 @@ export function Comprobantes({ toastError }: ComprobantesProps) {
           description={selectedComprobante.razon_social_vendedor || selectedComprobante.ruc_vendedor}
           size="xl"
         >
-          <div className="flex gap-0 border border-zinc-200 rounded-lg overflow-hidden mb-5 -mt-1">
+          <div className="flex gap-0 border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden mb-5 -mt-1">
             {(['info', 'detalles', 'xml'] as const).map((v) => (
               <button
                 key={v}
                 onClick={() => setDetailView(v)}
                 className={`flex-1 py-2 text-xs font-medium transition-colors duration-100 ${
                   detailView === v
-                    ? 'bg-zinc-900 text-white'
-                    : 'bg-white text-zinc-500 hover:bg-zinc-50'
+                    ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900'
+                    : 'bg-white dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-700'
                 }`}
               >
                 {v === 'info' ? 'Información' : v === 'detalles' ? 'Items XML' : 'XML crudo'}
@@ -459,7 +459,7 @@ export function Comprobantes({ toastError }: ComprobantesProps) {
           {detailView === 'info' && (
             <div className="grid grid-cols-2 gap-6">
               <div>
-                <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-3">
+                <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-3">
                   Comprobante
                 </p>
                 <dl className="space-y-2.5">
@@ -497,7 +497,7 @@ export function Comprobantes({ toastError }: ComprobantesProps) {
               </div>
 
               <div>
-                <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-3">
+                <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-3">
                   Vendedor
                 </p>
                 <dl className="space-y-2.5">
@@ -523,7 +523,7 @@ export function Comprobantes({ toastError }: ComprobantesProps) {
 
                 {selectedComprobante.detalles_xml?.receptor && (
                   <>
-                    <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide mt-5 mb-3">
+                    <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mt-5 mb-3">
                       Receptor
                     </p>
                     <dl className="space-y-2.5">
@@ -551,7 +551,7 @@ export function Comprobantes({ toastError }: ComprobantesProps) {
 
                 {selectedComprobante.detalles_xml?.pagos && selectedComprobante.detalles_xml.pagos.length > 0 && (
                   <>
-                    <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide mt-5 mb-3">
+                    <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mt-5 mb-3">
                       Pago
                     </p>
                     <dl className="space-y-2.5">
@@ -573,7 +573,7 @@ export function Comprobantes({ toastError }: ComprobantesProps) {
 
               {selectedComprobante.detalles_xml?.totales && (
                 <div className="col-span-2">
-                  <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-3">
+                  <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-3">
                     Totales
                   </p>
                   <div className="grid grid-cols-4 gap-3">
@@ -587,9 +587,9 @@ export function Comprobantes({ toastError }: ComprobantesProps) {
                       { label: 'IVA Total', value: selectedComprobante.detalles_xml.totales.ivaTotal, show: true },
                       { label: 'Total', value: selectedComprobante.detalles_xml.totales.total, show: true },
                     ].filter(({ show }) => show).map(({ label, value }) => (
-                      <div key={label} className={`card p-3 text-center ${label === 'Total' ? 'border-zinc-900' : ''}`}>
+                      <div key={label} className={`card p-3 text-center ${label === 'Total' ? 'border-zinc-900 dark:border-zinc-100' : ''}`}>
                         <p className="text-xs text-zinc-500 mb-1">{label}</p>
-                        <p className={`font-mono font-semibold text-sm ${label === 'Total' ? 'text-zinc-900' : 'text-zinc-700'}`}>
+                        <p className={`font-mono font-semibold text-sm ${label === 'Total' ? 'text-zinc-900 dark:text-zinc-100' : 'text-zinc-700 dark:text-zinc-300'}`}>
                           {formatCurrency(value)}
                         </p>
                       </div>
@@ -598,7 +598,7 @@ export function Comprobantes({ toastError }: ComprobantesProps) {
                 </div>
               )}
 
-              <div className="col-span-2 pt-3 border-t border-zinc-100">
+              <div className="col-span-2 pt-3 border-t border-zinc-100 dark:border-zinc-700">
                 <div className="flex items-center gap-2 mb-3">
                   <Download className="w-3.5 h-3.5 text-zinc-400" />
                   <p className="text-xs text-zinc-500">
@@ -654,7 +654,7 @@ export function Comprobantes({ toastError }: ComprobantesProps) {
               {selectedComprobante.detalles_xml?.items?.length ? (
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="bg-zinc-50 rounded-lg">
+                    <tr className="bg-zinc-50 dark:bg-zinc-800 rounded-lg">
                       <th className="table-th">Descripción</th>
                       <th className="table-th text-right">Cant.</th>
                       <th className="table-th text-right">P. Unitario</th>
@@ -724,7 +724,7 @@ function DR({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex items-start gap-2">
       <dt className="text-xs text-zinc-500 w-24 flex-shrink-0 pt-0.5">{label}</dt>
-      <dd className="text-sm text-zinc-900 flex-1 min-w-0">
+      <dd className="text-sm text-zinc-900 dark:text-zinc-100 flex-1 min-w-0">
         {typeof value === 'string' ? value : value}
       </dd>
     </div>

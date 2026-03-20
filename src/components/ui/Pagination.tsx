@@ -29,8 +29,8 @@ export function Pagination({ page, totalPages, total, limit, onPageChange }: Pag
   }
 
   return (
-    <div className="flex items-center justify-between px-4 py-3 border-t border-zinc-100">
-      <p className="text-xs text-zinc-500">
+    <div className="flex items-center justify-between px-4 py-3 border-t border-zinc-100 dark:border-zinc-700">
+      <p className="text-xs text-zinc-500 dark:text-zinc-400">
         {from}–{to} de {total}
       </p>
       <div className="flex items-center gap-1">

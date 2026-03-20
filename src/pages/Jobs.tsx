@@ -46,24 +46,24 @@ function JobTypeIcon({ tipo }: { tipo: JobType }) {
   const map: Record<JobType, { icon: React.ReactNode; bg: string }> = {
     SYNC_COMPROBANTES: {
       icon: <RefreshCw className="w-3.5 h-3.5 text-sky-600" />,
-      bg: 'bg-sky-50',
+      bg: 'bg-sky-50 dark:bg-sky-900/30',
     },
     ENVIAR_A_ORDS: {
       icon: <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />,
-      bg: 'bg-emerald-50',
+      bg: 'bg-emerald-50 dark:bg-emerald-900/30',
     },
     DESCARGAR_XML: {
       icon: <Briefcase className="w-3.5 h-3.5 text-amber-600" />,
-      bg: 'bg-amber-50',
+      bg: 'bg-amber-50 dark:bg-amber-900/30',
     },
     CONSULTA_COMPROBANTES: {
       icon: <RefreshCw className="w-3.5 h-3.5 text-violet-600" />,
-      bg: 'bg-violet-50',
+      bg: 'bg-violet-50 dark:bg-violet-900/30',
     },
   };
   const { icon, bg } = map[tipo] || {
     icon: <Briefcase className="w-3.5 h-3.5 text-zinc-500" />,
-    bg: 'bg-zinc-100',
+    bg: 'bg-zinc-100 dark:bg-zinc-700',
   };
   return (
     <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${bg}`}>
@@ -106,7 +106,7 @@ function JobRow({ job, tenant, expanded, onToggle, onCancel, cancelling }: JobRo
           <div className="flex items-center gap-3">
             <JobTypeIcon tipo={job.tipo_job} />
             <div>
-              <p className="font-medium text-zinc-900">
+              <p className="font-medium text-zinc-900 dark:text-zinc-100">
                 {JOB_TYPE_LABELS[job.tipo_job] || job.tipo_job}
               </p>
               <p className="text-xs font-mono text-zinc-400">{job.id.slice(0, 8)}</p>
@@ -116,7 +116,7 @@ function JobRow({ job, tenant, expanded, onToggle, onCancel, cancelling }: JobRo
         <td className="table-td">
           {tenant ? (
             <div>
-              <p className="text-sm font-medium text-zinc-700">{tenant.nombre_fantasia}</p>
+              <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{tenant.nombre_fantasia}</p>
               <p className="text-xs font-mono text-zinc-400">{tenant.ruc}</p>
             </div>
           ) : (
@@ -132,7 +132,7 @@ function JobRow({ job, tenant, expanded, onToggle, onCancel, cancelling }: JobRo
         <td className="table-td hidden lg:table-cell">
           <div className="flex items-center gap-1 text-xs text-zinc-500">
             <span>{job.intentos}</span>
-            <span className="text-zinc-300">/</span>
+            <span className="text-zinc-300 dark:text-zinc-600">/</span>
             <span>{job.max_intentos}</span>
           </div>
         </td>
@@ -149,11 +149,11 @@ function JobRow({ job, tenant, expanded, onToggle, onCancel, cancelling }: JobRo
       </tr>
 
       {expanded && (
-        <tr className="bg-zinc-50/80">
+        <tr className="bg-zinc-50/80 dark:bg-zinc-800/80">
           <td colSpan={6} className="px-5 py-4">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 text-xs">
               <div>
-                <p className="font-semibold text-zinc-600 mb-2">Detalles del job</p>
+                <p className="font-semibold text-zinc-600 dark:text-zinc-400 mb-2">Detalles del job</p>
                 <dl className="space-y-1.5">
                   <MiniRow label="ID" value={<span className="font-mono">{job.id}</span>} />
                   <MiniRow label="Tipo" value={job.tipo_job} />
@@ -162,7 +162,7 @@ function JobRow({ job, tenant, expanded, onToggle, onCancel, cancelling }: JobRo
                 </dl>
               </div>
               <div>
-                <p className="font-semibold text-zinc-600 mb-2">Timestamps</p>
+                <p className="font-semibold text-zinc-600 dark:text-zinc-400 mb-2">Timestamps</p>
                 <dl className="space-y-1.5">
                   <MiniRow label="Creado" value={formatDateTime(job.created_at)} />
                   <MiniRow
@@ -176,9 +176,9 @@ function JobRow({ job, tenant, expanded, onToggle, onCancel, cancelling }: JobRo
                 </dl>
               </div>
               <div>
-                <p className="font-semibold text-zinc-600 mb-2">Payload</p>
+                <p className="font-semibold text-zinc-600 dark:text-zinc-400 mb-2">Payload</p>
                 {Object.keys(job.payload).length > 0 ? (
-                  <pre className="font-mono text-xs bg-white border border-zinc-200 rounded-lg p-3 overflow-x-auto">
+                  <pre className="font-mono text-xs bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-3 overflow-x-auto">
                     {JSON.stringify(job.payload, null, 2)}
                   </pre>
                 ) : (
@@ -187,20 +187,20 @@ function JobRow({ job, tenant, expanded, onToggle, onCancel, cancelling }: JobRo
               </div>
               {job.result && Object.keys(job.result).length > 0 && (
                 <div className="lg:col-span-3">
-                  <p className="font-semibold text-zinc-600 mb-2">Resultado</p>
+                  <p className="font-semibold text-zinc-600 dark:text-zinc-400 mb-2">Resultado</p>
                   <div className="flex flex-wrap gap-3">
                     {Object.entries(job.result).map(([key, value]) => {
                       const label = key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
                       const isError = key.includes('fallido') || key.includes('error');
                       const isSuccess = key.includes('exitoso') || key.includes('enviado') || key.includes('insertado') || key.includes('actualizado');
                       const color = isError && Number(value) > 0
-                        ? 'bg-rose-50 text-rose-700 border-rose-200'
+                        ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-900/20 dark:text-rose-400 dark:border-rose-800'
                         : isSuccess && Number(value) > 0
-                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                        : 'bg-zinc-50 text-zinc-700 border-zinc-200';
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800'
+                        : 'bg-zinc-50 text-zinc-700 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700';
                       return (
                         <div key={key} className={`px-3 py-2 rounded-lg border text-xs font-medium ${color}`}>
-                          <span className="text-zinc-500 font-normal">{label}: </span>
+                          <span className="text-zinc-500 dark:text-zinc-400 font-normal">{label}: </span>
                           {typeof value === 'string' ? value : String(value)}
                         </div>
                       );
@@ -210,10 +210,10 @@ function JobRow({ job, tenant, expanded, onToggle, onCancel, cancelling }: JobRo
               )}
               {job.error_message && (
                 <div className="lg:col-span-3">
-                  <div className="flex items-start gap-2 p-3 bg-rose-50 border border-rose-200 rounded-lg">
+                  <div className="flex items-start gap-2 p-3 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-lg">
                     <AlertCircle className="w-4 h-4 text-rose-500 flex-shrink-0 mt-0.5" />
                     <div>
-                      <p className="font-semibold text-rose-700 mb-1">Error</p>
+                      <p className="font-semibold text-rose-700 dark:text-rose-400 mb-1">Error</p>
                       <p className="font-mono text-xs text-rose-600 whitespace-pre-wrap break-all">
                         {job.error_message}
                       </p>
@@ -226,7 +226,7 @@ function JobRow({ job, tenant, expanded, onToggle, onCancel, cancelling }: JobRo
                   <button
                     onClick={(e) => { e.stopPropagation(); onCancel(job.id); }}
                     disabled={cancelling}
-                    className="btn-sm bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 disabled:opacity-50"
+                    className="btn-sm bg-rose-50 dark:bg-rose-900/20 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-800 hover:bg-rose-100 dark:hover:bg-rose-900/40 disabled:opacity-50"
                   >
                     <XCircle className="w-3.5 h-3.5" />
                     {cancelling ? 'Cancelando...' : 'Cancelar job'}
@@ -245,7 +245,7 @@ function MiniRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex items-start gap-2">
       <dt className="text-zinc-400 w-28 flex-shrink-0">{label}</dt>
-      <dd className="text-zinc-700">{value}</dd>
+      <dd className="text-zinc-700 dark:text-zinc-300">{value}</dd>
     </div>
   );
 }
@@ -344,24 +344,24 @@ export function Jobs({ toastError, toastSuccess }: JobsProps) {
 
       <div className="grid grid-cols-5 gap-3 mb-6">
         {[
-          { key: 'PENDING', label: 'Pendientes', icon: <Clock className="w-4 h-4 text-amber-500" />, bg: 'bg-amber-50' },
-          { key: 'RUNNING', label: 'En ejecución', icon: <Loader2 className="w-4 h-4 text-sky-500 animate-spin" />, bg: 'bg-sky-50' },
-          { key: 'DONE', label: 'Completados', icon: <CheckCircle2 className="w-4 h-4 text-emerald-500" />, bg: 'bg-emerald-50' },
-          { key: 'FAILED', label: 'Fallidos', icon: <XCircle className="w-4 h-4 text-rose-500" />, bg: 'bg-rose-50' },
-          { key: 'CANCELLED', label: 'Cancelados', icon: <Ban className="w-4 h-4 text-zinc-400" />, bg: 'bg-zinc-100' },
+          { key: 'PENDING', label: 'Pendientes', icon: <Clock className="w-4 h-4 text-amber-500" />, bg: 'bg-amber-50 dark:bg-amber-900/30' },
+          { key: 'RUNNING', label: 'En ejecución', icon: <Loader2 className="w-4 h-4 text-sky-500 animate-spin" />, bg: 'bg-sky-50 dark:bg-sky-900/30' },
+          { key: 'DONE', label: 'Completados', icon: <CheckCircle2 className="w-4 h-4 text-emerald-500" />, bg: 'bg-emerald-50 dark:bg-emerald-900/30' },
+          { key: 'FAILED', label: 'Fallidos', icon: <XCircle className="w-4 h-4 text-rose-500" />, bg: 'bg-rose-50 dark:bg-rose-900/30' },
+          { key: 'CANCELLED', label: 'Cancelados', icon: <Ban className="w-4 h-4 text-zinc-400" />, bg: 'bg-zinc-100 dark:bg-zinc-700' },
         ].map(({ key, label, icon, bg }) => (
           <button
             key={key}
             onClick={() => setStatusFilter(statusFilter === key ? '' : key)}
             className={`card p-4 flex items-center gap-3 transition-all hover:shadow-sm text-left ${
-              statusFilter === key ? 'ring-2 ring-zinc-900 ring-offset-1' : ''
+              statusFilter === key ? 'ring-2 ring-zinc-900 dark:ring-zinc-100 ring-offset-1' : ''
             }`}
           >
             <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${bg}`}>
               {icon}
             </div>
             <div>
-              <p className="text-lg font-bold text-zinc-900 tabular-nums">
+              <p className="text-lg font-bold text-zinc-900 dark:text-zinc-100 tabular-nums">
                 {counts[key as keyof typeof counts]}
               </p>
               <p className="text-xs text-zinc-500">{label}</p>
@@ -382,7 +382,7 @@ export function Jobs({ toastError, toastSuccess }: JobsProps) {
           {search && (
             <button
               onClick={() => setSearch('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -415,7 +415,7 @@ export function Jobs({ toastError, toastSuccess }: JobsProps) {
       ) : (
         <div className="card overflow-hidden">
           <table className="w-full">
-            <thead className="bg-zinc-50 border-b border-zinc-200">
+            <thead className="bg-zinc-50 dark:bg-zinc-800 border-b border-zinc-200 dark:border-zinc-700">
               <tr>
                 <th className="table-th">Job</th>
                 <th className="table-th">Empresa</th>
@@ -441,7 +441,7 @@ export function Jobs({ toastError, toastSuccess }: JobsProps) {
           </table>
 
           {totalPages > 1 && (
-            <div className="flex items-center justify-between px-5 py-3 border-t border-zinc-100">
+            <div className="flex items-center justify-between px-5 py-3 border-t border-zinc-100 dark:border-zinc-700">
               <p className="text-xs text-zinc-500">
                 {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filtered.length)} de{' '}
                 {filtered.length}

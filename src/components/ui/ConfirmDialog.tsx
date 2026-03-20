@@ -46,10 +46,10 @@ export function ConfirmDialog({
       }
     >
       <div className="flex gap-3">
-        <div className="w-9 h-9 rounded-xl bg-amber-50 flex items-center justify-center flex-shrink-0">
+        <div className="w-9 h-9 rounded-xl bg-amber-50 dark:bg-amber-900/30 flex items-center justify-center flex-shrink-0">
           <AlertTriangle className="w-4 h-4 text-amber-500" />
         </div>
-        <p className="text-sm text-zinc-600 pt-1.5">{description}</p>
+        <p className="text-sm text-zinc-600 dark:text-zinc-300 pt-1.5">{description}</p>
       </div>
     </Modal>
   );

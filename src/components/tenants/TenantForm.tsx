@@ -85,7 +85,7 @@ function PasswordInput({
       <button
         type="button"
         onClick={() => setShow((v) => !v)}
-        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
+        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
       >
         {show ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
       </button>
@@ -164,7 +164,7 @@ export function TenantForm({ initialData, onSubmit, loading }: TenantFormProps) 
 
   return (
     <form onSubmit={handleSubmit} noValidate>
-      <div className="flex gap-0 border border-zinc-200 rounded-lg overflow-hidden mb-6">
+      <div className="flex gap-0 border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden mb-6">
         {TABS.map((t) => (
           <button
             key={t}
@@ -173,8 +173,8 @@ export function TenantForm({ initialData, onSubmit, loading }: TenantFormProps) 
             className={cn(
               'flex-1 py-2 text-xs font-medium transition-colors duration-100',
               t === tab
-                ? 'bg-zinc-900 text-white'
-                : 'bg-white text-zinc-500 hover:text-zinc-700 hover:bg-zinc-50'
+                ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900'
+                : 'bg-white dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-700'
             )}
           >
             {TAB_LABELS[t]}
@@ -215,12 +215,12 @@ export function TenantForm({ initialData, onSubmit, loading }: TenantFormProps) 
 
         {tab === 'marangatu' && (
           <>
-            <div className="text-xs text-zinc-500 p-3 bg-zinc-50 rounded-lg border border-zinc-200">
+            <div className="text-xs text-zinc-500 dark:text-zinc-400 p-3 bg-zinc-50 dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700">
               Credenciales para acceso al portal Marangatu SET Paraguay. Las contraseñas se
               cifran con AES-256 antes de almacenarse.
             </div>
             {!form.config.usuario_marangatu && !form.config.clave_marangatu && (
-              <div className="text-xs text-amber-600 p-3 bg-amber-50 rounded-lg border border-amber-200">
+              <div className="text-xs text-amber-600 dark:text-amber-400 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
                 Sin credenciales Marangatu, la empresa no participará en las sincronizaciones automáticas.
                 Pueden completarse después.
               </div>
@@ -263,10 +263,10 @@ export function TenantForm({ initialData, onSubmit, loading }: TenantFormProps) 
 
         {tab === 'ords' && (
           <>
-            <div className="flex items-center justify-between p-3 bg-zinc-50 rounded-lg border border-zinc-200">
+            <div className="flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700">
               <div>
-                <p className="text-xs font-medium text-zinc-700">Enviar a ORDS automáticamente</p>
-                <p className="text-xs text-zinc-500 mt-0.5">
+                <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300">Enviar a ORDS automáticamente</p>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
                   Encola envío ORDS después de cada sync
                 </p>
               </div>
@@ -280,7 +280,7 @@ export function TenantForm({ initialData, onSubmit, loading }: TenantFormProps) 
                 }
                 className={cn(
                   'relative inline-flex h-5 w-9 items-center rounded-full transition-colors',
-                  form.config.enviar_a_ords_automaticamente ? 'bg-zinc-900' : 'bg-zinc-300'
+                  form.config.enviar_a_ords_automaticamente ? 'bg-zinc-900 dark:bg-zinc-100' : 'bg-zinc-300 dark:bg-zinc-600'
                 )}
               >
                 <span
@@ -356,7 +356,7 @@ export function TenantForm({ initialData, onSubmit, loading }: TenantFormProps) 
 
             {form.config.ords_tipo_autenticacion === 'CLIENT_CREDENTIALS' && (
               <>
-                <div className="text-xs text-zinc-500 p-3 bg-amber-50 rounded-lg border border-amber-200">
+                <div className="text-xs text-zinc-500 dark:text-zinc-400 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
                   OAuth2 Client Credentials: la app obtiene y renueva el token automáticamente
                   usando el client_id y client_secret configurados en Oracle ORDS.
                 </div>
@@ -410,7 +410,7 @@ export function TenantForm({ initialData, onSubmit, loading }: TenantFormProps) 
         )}
       </div>
 
-      <div className="pt-5 mt-5 border-t border-zinc-100 flex justify-end gap-3">
+      <div className="pt-5 mt-5 border-t border-zinc-100 dark:border-zinc-700 flex justify-end gap-3">
         <button type="submit" disabled={loading} className="btn-lg btn-primary">
           {loading && <Spinner size="xs" />}
           {initialData ? 'Guardar cambios' : 'Crear empresa'}
