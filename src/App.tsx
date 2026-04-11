@@ -9,6 +9,7 @@ import { Users } from './pages/Users';
 import { Login } from './pages/Login';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { useToast } from './hooks/useToast';
+import { useTheme } from './hooks/useTheme';
 import { api, MOCK_MODE } from './lib/api';
 import { PageLoader } from './components/ui/Spinner';
 import type { Page } from './components/layout/Sidebar';
@@ -24,6 +25,7 @@ function AuthenticatedApp() {
   const [navParams, setNavParams] = useState<NavParams>({});
   const [apiStatus, setApiStatus] = useState<'ok' | 'error' | 'checking'>('checking');
   const { toasts, remove, success, error } = useToast();
+  const { dark, toggle: toggleTheme } = useTheme();
 
   const checkApi = useCallback(async () => {
     if (MOCK_MODE) {
@@ -67,6 +69,8 @@ function AuthenticatedApp() {
         mockMode={MOCK_MODE}
         user={user}
         onLogout={logout}
+        dark={dark}
+        onToggleTheme={toggleTheme}
       >
         {page === 'dashboard' && (
           <Dashboard onNavigate={navigate} />
@@ -108,7 +112,7 @@ function AppRouter() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-zinc-50">
+      <div className="min-h-screen flex items-center justify-center bg-zinc-50 dark:bg-zinc-900">
         <PageLoader />
       </div>
     );

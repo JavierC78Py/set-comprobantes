@@ -178,7 +178,7 @@ export function Users({ toastSuccess, toastError }: UsersProps) {
       ) : (
         <div className="card overflow-hidden">
           <table className="w-full">
-            <thead className="bg-zinc-50 border-b border-zinc-200">
+            <thead className="bg-zinc-50 dark:bg-zinc-800 border-b border-zinc-200 dark:border-zinc-700">
               <tr>
                 <th className="table-th">Usuario</th>
                 <th className="table-th">Rol</th>
@@ -193,15 +193,15 @@ export function Users({ toastSuccess, toastError }: UsersProps) {
                 <tr key={u.id} className="table-tr">
                   <td className="table-td">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-zinc-100 flex items-center justify-center">
+                      <div className="w-8 h-8 rounded-lg bg-zinc-100 dark:bg-zinc-700 flex items-center justify-center">
                         {u.rol === 'ADMIN' ? (
-                          <Shield className="w-3.5 h-3.5 text-zinc-600" />
+                          <Shield className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-400" />
                         ) : (
                           <UserIcon className="w-3.5 h-3.5 text-zinc-400" />
                         )}
                       </div>
                       <div>
-                        <p className="font-medium text-zinc-900">{u.nombre}</p>
+                        <p className="font-medium text-zinc-900 dark:text-zinc-100">{u.nombre}</p>
                         <p className="text-xs text-zinc-400 font-mono">{u.username}</p>
                       </div>
                     </div>
@@ -213,9 +213,9 @@ export function Users({ toastSuccess, toastError }: UsersProps) {
                   </td>
                   <td className="table-td">
                     {u.rol === 'ADMIN' ? (
-                      <span className="text-xs text-zinc-500">Todas</span>
+                      <span className="text-xs text-zinc-500 dark:text-zinc-400">Todas</span>
                     ) : u.tenant_ids.length > 0 ? (
-                      <span className="text-xs text-zinc-600">{u.tenant_ids.length} empresa{u.tenant_ids.length !== 1 ? 's' : ''}</span>
+                      <span className="text-xs text-zinc-600 dark:text-zinc-400">{u.tenant_ids.length} empresa{u.tenant_ids.length !== 1 ? 's' : ''}</span>
                     ) : (
                       <span className="text-xs text-zinc-400">Ninguna</span>
                     )}
@@ -321,12 +321,12 @@ export function Users({ toastSuccess, toastError }: UsersProps) {
           </div>
 
           {editingUser && (
-            <div className="flex items-center gap-3 p-3 bg-zinc-50 rounded-lg border border-zinc-200">
+            <div className="flex items-center gap-3 p-3 bg-zinc-50 dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700">
               <button
                 type="button"
                 onClick={() => setForm((f) => ({ ...f, activo: !f.activo }))}
                 className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-                  form.activo ? 'bg-zinc-900' : 'bg-zinc-300'
+                  form.activo ? 'bg-zinc-900 dark:bg-zinc-100' : 'bg-zinc-300 dark:bg-zinc-600'
                 }`}
               >
                 <span
@@ -335,7 +335,7 @@ export function Users({ toastSuccess, toastError }: UsersProps) {
                   }`}
                 />
               </button>
-              <span className="text-xs font-medium text-zinc-700">
+              <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
                 {form.activo ? 'Activo' : 'Inactivo'}
               </span>
             </div>
@@ -347,20 +347,20 @@ export function Users({ toastSuccess, toastError }: UsersProps) {
               {tenants.length === 0 ? (
                 <p className="text-xs text-zinc-400">No hay empresas disponibles</p>
               ) : (
-                <div className="border border-zinc-200 rounded-lg max-h-40 overflow-y-auto divide-y divide-zinc-100">
+                <div className="border border-zinc-200 dark:border-zinc-700 rounded-lg max-h-40 overflow-y-auto divide-y divide-zinc-100 dark:divide-zinc-700">
                   {tenants.map((t) => (
                     <label
                       key={t.id}
-                      className="flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-zinc-50 transition-colors"
+                      className="flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
                     >
                       <input
                         type="checkbox"
                         checked={form.tenant_ids.includes(t.id)}
                         onChange={() => toggleTenant(t.id)}
-                        className="rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900/20"
+                        className="rounded border-zinc-300 text-zinc-900 dark:text-zinc-100 focus:ring-zinc-900/20"
                       />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm text-zinc-900 truncate">{t.nombre_fantasia}</p>
+                        <p className="text-sm text-zinc-900 dark:text-zinc-100 truncate">{t.nombre_fantasia}</p>
                         <p className="text-xs text-zinc-400 font-mono">{t.ruc}</p>
                       </div>
                     </label>
@@ -397,7 +397,7 @@ export function Users({ toastSuccess, toastError }: UsersProps) {
           </>
         }
       >
-        <p className="text-sm text-zinc-600">
+        <p className="text-sm text-zinc-600 dark:text-zinc-300">
           ¿Estás seguro de que querés eliminar este usuario? Esta acción no se puede deshacer.
         </p>
       </Modal>

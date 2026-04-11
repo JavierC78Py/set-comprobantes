@@ -10,6 +10,8 @@ import {
   LogOut,
   Shield,
   User,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import type { AuthUser } from '../../types';
@@ -38,17 +40,19 @@ interface SidebarProps {
   mockMode?: boolean;
   user?: AuthUser | null;
   onLogout?: () => void;
+  dark?: boolean;
+  onToggleTheme?: () => void;
 }
 
-export function Sidebar({ current, onNavigate, apiStatus, mockMode, user, onLogout }: SidebarProps) {
+export function Sidebar({ current, onNavigate, apiStatus, mockMode, user, onLogout, dark, onToggleTheme }: SidebarProps) {
   const isAdmin = user?.rol === 'ADMIN';
   const visibleItems = NAV_ITEMS.filter((item) => !item.adminOnly || isAdmin);
 
   return (
-    <aside className="w-60 flex-shrink-0 h-screen sticky top-0 flex flex-col bg-white border-r border-zinc-200">
-      <div className="px-5 pt-6 pb-4 border-b border-zinc-100">
+    <aside className="w-60 flex-shrink-0 h-screen sticky top-0 flex flex-col bg-white border-r border-zinc-200 dark:bg-zinc-900 dark:border-zinc-800">
+      <div className="px-5 pt-6 pb-4 border-b border-zinc-100 dark:border-zinc-800">
         <div>
-          <p className="text-sm font-semibold text-zinc-900 leading-none">Kmelot</p>
+          <p className="text-sm font-semibold text-zinc-900 leading-none dark:text-zinc-100">Kmelot</p>
           <p className="text-[10px] text-zinc-400 mt-0.5">DNIT Comprobantes</p>
         </div>
       </div>
@@ -73,7 +77,7 @@ export function Sidebar({ current, onNavigate, apiStatus, mockMode, user, onLogo
           ))}
         </div>
 
-        <div className="mt-6 pt-4 border-t border-zinc-100">
+        <div className="mt-6 pt-4 border-t border-zinc-100 dark:border-zinc-800">
           <p className="px-3 mb-2 text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">
             Recursos
           </p>
@@ -89,23 +93,30 @@ export function Sidebar({ current, onNavigate, apiStatus, mockMode, user, onLogo
         </div>
       </nav>
 
-      <div className="px-4 py-4 border-t border-zinc-100 space-y-3">
+      <div className="px-4 py-4 border-t border-zinc-100 dark:border-zinc-800 space-y-3">
         {user && (
           <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg bg-zinc-100 flex items-center justify-center flex-shrink-0">
+            <div className="w-7 h-7 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center flex-shrink-0">
               {isAdmin ? (
-                <Shield className="w-3.5 h-3.5 text-zinc-600" />
+                <Shield className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-400" />
               ) : (
                 <User className="w-3.5 h-3.5 text-zinc-400" />
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-zinc-700 truncate">{user.nombre}</p>
+              <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300 truncate">{user.nombre}</p>
               <p className="text-[10px] text-zinc-400">{isAdmin ? 'Administrador' : 'Usuario'}</p>
             </div>
             <button
+              onClick={onToggleTheme}
+              className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 dark:hover:text-zinc-300 dark:hover:bg-zinc-800 transition-colors"
+              title={dark ? 'Modo claro' : 'Modo oscuro'}
+            >
+              {dark ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+            </button>
+            <button
               onClick={onLogout}
-              className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 transition-colors"
+              className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 dark:hover:text-zinc-300 dark:hover:bg-zinc-800 transition-colors"
               title="Cerrar sesión"
             >
               <LogOut className="w-3.5 h-3.5" />
@@ -115,7 +126,7 @@ export function Sidebar({ current, onNavigate, apiStatus, mockMode, user, onLogo
         {mockMode ? (
           <div className="flex items-center gap-2">
             <FlaskConical className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
-            <span className="text-xs text-amber-600 font-medium">Modo Demo</span>
+            <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">Modo Demo</span>
           </div>
         ) : (
           <div className="flex items-center gap-2">
@@ -129,7 +140,7 @@ export function Sidebar({ current, onNavigate, apiStatus, mockMode, user, onLogo
                   : 'bg-amber-400 animate-pulse'
               )}
             />
-            <span className="text-xs text-zinc-500">
+            <span className="text-xs text-zinc-500 dark:text-zinc-400">
               {apiStatus === 'ok'
                 ? 'API conectada'
                 : apiStatus === 'error'

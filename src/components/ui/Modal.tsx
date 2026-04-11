@@ -45,17 +45,17 @@ export function Modal({ open, onClose, title, description, children, size = 'md'
         if (e.target === overlayRef.current) onClose();
       }}
     >
-      <div className="absolute inset-0 bg-zinc-900/40 backdrop-blur-sm" />
+      <div className="absolute inset-0 bg-zinc-900/40 dark:bg-black/60 backdrop-blur-sm" />
       <div
         className={cn(
-          'relative w-full bg-white rounded-2xl shadow-lg border border-zinc-200 animate-fade-in flex flex-col max-h-[90vh]',
+          'relative w-full bg-white dark:bg-zinc-800 rounded-2xl shadow-lg border border-zinc-200 dark:border-zinc-700 animate-fade-in flex flex-col max-h-[90vh]',
           sizeClasses[size]
         )}
       >
-        <div className="flex items-start justify-between px-6 pt-6 pb-4 border-b border-zinc-100">
+        <div className="flex items-start justify-between px-6 pt-6 pb-4 border-b border-zinc-100 dark:border-zinc-700">
           <div>
-            <h2 className="text-base font-semibold text-zinc-900">{title}</h2>
-            {description && <p className="text-sm text-zinc-500 mt-0.5">{description}</p>}
+            <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">{title}</h2>
+            {description && <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">{description}</p>}
           </div>
           <button
             onClick={onClose}
@@ -66,7 +66,7 @@ export function Modal({ open, onClose, title, description, children, size = 'md'
         </div>
         <div className="flex-1 overflow-y-auto px-6 py-4">{children}</div>
         {footer && (
-          <div className="px-6 py-4 border-t border-zinc-100 flex items-center justify-end gap-3">
+          <div className="px-6 py-4 border-t border-zinc-100 dark:border-zinc-700 flex items-center justify-end gap-3">
             {footer}
           </div>
         )}
