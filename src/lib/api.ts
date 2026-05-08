@@ -18,7 +18,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const url = `${BASE_URL}${path}`;
   const token = localStorage.getItem(TOKEN_KEY);
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
+    ...(options?.body ? { 'Content-Type': 'application/json' } : {}),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...(options?.headers as Record<string, string> || {}),
   };
@@ -69,6 +69,10 @@ export const api = {
     update: (id: string, body: unknown): Promise<Tenant> => {
       if (MOCK_MODE) return mockStore.updateTenant(id, body);
       return request<{ data: Tenant }>(`/tenants/${id}`, { method: 'PUT', body: JSON.stringify(body) }).then((r) => r.data);
+    },
+    delete: (id: string): Promise<void> => {
+      if (MOCK_MODE) return Promise.resolve();
+      return request(`/tenants/${id}`, { method: 'DELETE' }).then(() => {});
     },
   },
 

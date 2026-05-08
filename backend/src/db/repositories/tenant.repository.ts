@@ -262,6 +262,14 @@ export async function upsertTenantConfig(
   });
 }
 
+export async function deleteTenant(id: string): Promise<boolean> {
+  const result = await queryOne<{ id: string }>(
+    'DELETE FROM tenants WHERE id = $1 RETURNING id',
+    [id]
+  );
+  return !!result;
+}
+
 export function decryptTenantConfig(config: TenantConfig): TenantConfig & {
   clave_marangatu: string;
   ords_password?: string;

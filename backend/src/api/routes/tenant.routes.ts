@@ -8,6 +8,7 @@ import {
   updateTenant,
   upsertTenantConfig,
   findTenantWithConfig,
+  deleteTenant,
 } from '../../db/repositories/tenant.repository';
 
 // Helper: transform empty strings to undefined so optional validators pass
@@ -15,7 +16,7 @@ const emptyToUndefined = z.literal('').transform(() => undefined);
 
 const optionalEmail = z.string().email().optional().or(emptyToUndefined);
 const optionalUrl = z.string().url().optional().or(emptyToUndefined);
-const optionalString = z.string().optional().or(emptyToUndefined);
+const optionalString = z.preprocess((v) => (v === '' ? undefined : v), z.string().optional());
 
 const createTenantSchema = z.object({
   nombre_fantasia: z.string().min(1).max(255),
@@ -187,5 +188,29 @@ export async function tenantRoutes(app: FastifyInstance): Promise<void> {
     }
 
     return reply.send({ data: tenant });
+  });
+
+  app.delete<{ Params: { id: string } }>('/tenants/:id', async (req, reply) => {
+    if (req.currentUser.rol !== 'ADMIN') {
+      return reply.status(403).send({ error: 'Solo un administrador puede eliminar empresas' });
+    }
+
+    const existing = await findTenantById(req.params.id);
+    if (!existing) {
+      return reply.status(404).send({ error: 'Tenant no encontrado' });
+    }
+
+    const deleted = await deleteTenant(req.params.id);
+    if (!deleted) {
+      return reply.status(500).send({ error: 'Error al eliminar la empresa' });
+    }
+
+    logger.info('DELETE /tenants/:id', {
+      tenantId: req.params.id,
+      tenantName: existing.nombre_fantasia,
+      user: req.currentUser?.username,
+    });
+
+    return reply.send({ message: `Empresa "${existing.nombre_fantasia}" eliminada correctamente` });
   });
 }

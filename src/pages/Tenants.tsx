@@ -17,6 +17,7 @@ import {
   AlertCircle,
   Clock,
   KeyRound,
+  Trash2,
 } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { Badge } from '../components/ui/Badge';
@@ -75,6 +76,9 @@ export function Tenants({
   const [credsModalOpen, setCredsModalOpen] = useState(false);
   const [credsForm, setCredsForm] = useState({ usuario_marangatu: '', clave_marangatu: '' });
   const [credsLoading, setCredsLoading] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteConfirmName, setDeleteConfirmName] = useState('');
   const [tenantStats, setTenantStats] = useState<{
     total: number; con_xml: number; enviados_ords: number; pendientes_ords: number; fallidos_ords: number;
   } | null>(null);
@@ -243,6 +247,26 @@ export function Tenants({
       toastError('Error al guardar credenciales', e instanceof Error ? e.message : undefined);
     } finally {
       setCredsLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!selectedId || !selectedTenant) return;
+    if (deleteConfirmName !== selectedTenant.nombre_fantasia) return;
+    setDeleteLoading(true);
+    try {
+      await api.tenants.delete(selectedId);
+      toastSuccess('Empresa eliminada', `"${selectedTenant.nombre_fantasia}" y todos sus datos fueron eliminados`);
+      setDeleteModalOpen(false);
+      setDeleteConfirmName('');
+      setSelectedId(null);
+      setSelectedTenant(null);
+      setView('list');
+      await loadList();
+    } catch (e: unknown) {
+      toastError('Error al eliminar empresa', e instanceof Error ? e.message : undefined);
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -567,6 +591,12 @@ export function Tenants({
                         className="btn-md btn-secondary"
                       >
                         <Edit3 className="w-3.5 h-3.5" /> Editar
+                      </button>
+                      <button
+                        onClick={() => { setDeleteConfirmName(''); setDeleteModalOpen(true); }}
+                        className="btn-md bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800 hover:bg-rose-100 dark:hover:bg-rose-900/40"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" /> Eliminar
                       </button>
                     </>
                   ) : (
@@ -906,6 +936,60 @@ export function Tenants({
               }`}
             />
           </button>
+        </div>
+      </Modal>
+
+      {/* Modal confirmación eliminar empresa (admin) */}
+      <Modal
+        open={deleteModalOpen}
+        onClose={() => { setDeleteModalOpen(false); setDeleteConfirmName(''); }}
+        title="Eliminar empresa"
+        description={selectedTenant?.nombre_fantasia}
+        size="sm"
+        footer={
+          <>
+            <button
+              onClick={() => { setDeleteModalOpen(false); setDeleteConfirmName(''); }}
+              className="btn-md btn-secondary"
+              disabled={deleteLoading}
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleDelete}
+              disabled={deleteLoading || deleteConfirmName !== selectedTenant?.nombre_fantasia}
+              className="btn-md bg-rose-600 text-white hover:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {deleteLoading && <Spinner size="xs" />}
+              Eliminar definitivamente
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <div className="p-3 bg-rose-50 dark:bg-rose-900/20 rounded-lg border border-rose-200 dark:border-rose-800">
+            <p className="text-sm text-rose-700 dark:text-rose-300 font-medium">
+              Esta acción es irreversible
+            </p>
+            <p className="text-xs text-rose-600 dark:text-rose-400 mt-1">
+              Se eliminarán permanentemente la empresa, su configuración, todos los comprobantes,
+              jobs, envíos ORDS y asignaciones de usuarios asociados.
+            </p>
+          </div>
+          <div>
+            <label className="label">
+              Escribí <span className="font-semibold text-zinc-900 dark:text-zinc-100">
+                {selectedTenant?.nombre_fantasia}
+              </span> para confirmar
+            </label>
+            <input
+              className="input"
+              value={deleteConfirmName}
+              onChange={(e) => setDeleteConfirmName(e.target.value)}
+              placeholder="Nombre de la empresa"
+              autoComplete="off"
+            />
+          </div>
         </div>
       </Modal>
 
