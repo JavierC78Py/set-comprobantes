@@ -213,6 +213,7 @@ export interface Comprobante {
   xml_descargado_at: string | null;
   detalles_xml: DetallesXml | null;
   estado_envio_ords: 'PENDING' | 'SENT' | 'FAILED' | null;
+  ords_error_message: string | null;
   created_at: string;
   updated_at: string;
 }

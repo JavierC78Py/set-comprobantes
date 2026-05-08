@@ -538,9 +538,11 @@ export class MarangatuService {
   /**
    * Navega a la siguiente página de la tabla de comprobantes.
    * Usa los links de paginación Angular (ul.pagination > li > a.page-link).
+   * Espera a que los DATOS de la tabla cambien (no li.active, que cambia antes
+   * de que Angular re-renderice la tabla, causando lectura duplicada).
    * Retorna true si pudo avanzar, false si ya está en la última página.
    */
-  private async irSiguientePagina(page: Page): Promise<boolean> {
+  private async irSiguientePagina(page: Page, primeraFilaAnterior: string = ''): Promise<boolean> {
     const { totalPaginas, paginaActual } = await this.leerInfoPaginacion(page);
 
     if (paginaActual >= totalPaginas) return false;
@@ -565,19 +567,40 @@ export class MarangatuService {
       return false;
     }
 
-    await page.waitForFunction(
-      (activePageSel: string, expected: number) => {
-        const active = document.querySelector(activePageSel);
-        return active
-          ? parseInt(active.textContent?.trim() ?? '0', 10) === expected
-          : false;
-      },
-      { timeout: config.puppeteer.timeoutMs },
-      SELECTORS.registro.paginaActiva,
-      siguientePagina
-    );
+    // Esperar SOLO a que los datos de la tabla cambien (primera fila diferente).
+    // NO usar li.active como condición: Angular actualiza la clase CSS ANTES de
+    // re-renderizar la tabla, causando lectura duplicada de la misma página.
+    if (primeraFilaAnterior) {
+      await page.waitForFunction(
+        (filaAnterior: string) => {
+          const rows = Array.from(
+            document.querySelectorAll('table.table-responsive tbody tr')
+          );
+          if (rows.length === 0) return false;
+          const tds = Array.from(rows[0]!.querySelectorAll('td'));
+          const cells = tds.map((td) => td.textContent?.trim() ?? '');
+          // Columnas 3 (CDC) y 4 (Número Comprobante) identifican la fila
+          const filaActual = (cells[3] ?? '') + '|' + (cells[4] ?? '');
+          return filaActual !== filaAnterior;
+        },
+        { timeout: config.puppeteer.timeoutMs },
+        primeraFilaAnterior
+      );
+    } else {
+      await page.waitForFunction(
+        (activePageSel: string, expected: number) => {
+          const active = document.querySelector(activePageSel);
+          return active
+            ? parseInt(active.textContent?.trim() ?? '0', 10) === expected
+            : false;
+        },
+        { timeout: config.puppeteer.timeoutMs },
+        SELECTORS.registro.paginaActiva,
+        siguientePagina
+      );
+    }
 
-    await this.waitForAngular(page, 600);
+    await this.waitForAngular(page, 1000);
     return true;
   }
 
@@ -1299,6 +1322,7 @@ export class MarangatuService {
       logger.info('Tabla de comprobantes lista', { tenant_id: tenantId, mes, anio });
 
       let hasMore = true;
+      let ultimaPrimeraFila = '';
       while (hasMore) {
         result.total_pages++;
         logger.debug(`Extrayendo página ${result.total_pages}`, { tenant_id: tenantId });
@@ -1306,6 +1330,11 @@ export class MarangatuService {
         const rows = await this.extraerFilasDeComprobantes(workingPage);
         result.total_rows += rows.length;
         logger.debug(`Filas extraídas en página ${result.total_pages}: ${rows.length}`);
+
+        // Guardar identificador de la primera fila para detectar cambio de página
+        if (rows.length > 0) {
+          ultimaPrimeraFila = (rows[0]!.cdc ?? '') + '|' + rows[0]!.numero_comprobante;
+        }
 
         for (const row of rows) {
           try {
@@ -1333,7 +1362,7 @@ export class MarangatuService {
           }
         }
 
-        hasMore = await this.irSiguientePagina(workingPage);
+        hasMore = await this.irSiguientePagina(workingPage, ultimaPrimeraFila);
       }
 
       logger.info('Sincronización completada', {

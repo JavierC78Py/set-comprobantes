@@ -71,6 +71,7 @@ export function Comprobantes({ toastError }: ComprobantesProps) {
   const [showExport, setShowExport] = useState(false);
   const [selectedComprobante, setSelectedComprobante] = useState<Comprobante | null>(null);
   const [detailView, setDetailView] = useState<'info' | 'xml' | 'detalles'>('info');
+  const [ordsErrorComprobante, setOrdsErrorComprobante] = useState<Comprobante | null>(null);
   const LIMIT = 20;
 
   const load = useCallback(async (silent = false) => {
@@ -407,10 +408,14 @@ export function Comprobantes({ toastError }: ComprobantesProps) {
                         <span className="text-xs">Pendiente</span>
                       </span>
                     ) : c.estado_envio_ords === 'FAILED' ? (
-                      <span className="flex items-center gap-1 text-rose-500">
+                      <button
+                        onClick={() => setOrdsErrorComprobante(c)}
+                        className="flex items-center gap-1 text-rose-500 hover:text-rose-700 cursor-pointer underline-offset-2 hover:underline"
+                        title="Ver detalle del error"
+                      >
                         <AlertCircle className="w-3.5 h-3.5" />
                         <span className="text-xs">Fallido</span>
-                      </span>
+                      </button>
                     ) : (
                       <span className="flex items-center gap-1 text-zinc-300 dark:text-zinc-600">
                         <Circle className="w-3.5 h-3.5" />
@@ -713,6 +718,32 @@ export function Comprobantes({ toastError }: ComprobantesProps) {
                 />
               )}
             </div>
+          )}
+        </Modal>
+      )}
+
+      {ordsErrorComprobante && (
+        <Modal
+          open={!!ordsErrorComprobante}
+          onClose={() => setOrdsErrorComprobante(null)}
+          title="Error de envío ORDS"
+          description={`Comprobante ${ordsErrorComprobante.numero_comprobante}`}
+          size="sm"
+          footer={
+            <button
+              onClick={() => setOrdsErrorComprobante(null)}
+              className="btn btn-secondary w-full"
+            >
+              Cerrar
+            </button>
+          }
+        >
+          {ordsErrorComprobante.ords_error_message ? (
+            <pre className="text-xs text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/30 rounded p-3 whitespace-pre-wrap break-words font-mono">
+              {ordsErrorComprobante.ords_error_message}
+            </pre>
+          ) : (
+            <p className="text-sm text-zinc-500">No hay mensaje de error registrado.</p>
           )}
         </Modal>
       )}

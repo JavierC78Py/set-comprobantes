@@ -151,7 +151,7 @@ export async function findComprobantesByTenant(
   const offset = (pagination.page - 1) * pagination.limit;
 
   const data = await query<Comprobante>(
-    `SELECT c.*, eo.estado_envio AS estado_envio_ords
+    `SELECT c.*, eo.estado_envio AS estado_envio_ords, eo.error_message AS ords_error_message
      FROM comprobantes c
      LEFT JOIN comprobante_envio_ords eo ON eo.comprobante_id = c.id AND eo.tenant_id = c.tenant_id
      ${where}
