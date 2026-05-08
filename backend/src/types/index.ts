@@ -245,6 +245,8 @@ export interface SyncJobPayload {
 export interface EnviarOrdsJobPayload {
   comprobante_id?: string;
   batch_size?: number;
+  fecha_desde?: string;
+  fecha_hasta?: string;
 }
 
 export interface DescargarXmlJobPayload {

@@ -252,9 +252,11 @@ export class OrdsService {
     tenantId: string,
     tenantRuc: string,
     tenantConfig: TenantConfig,
-    batchSize = 50
+    batchSize = 50,
+    fechaDesde?: string,
+    fechaHasta?: string
   ): Promise<{ enviados: number; fallidos: number }> {
-    const pendientes = await findPendingOrdsEnvios(tenantId, batchSize);
+    const pendientes = await findPendingOrdsEnvios(tenantId, batchSize, fechaDesde, fechaHasta);
     let enviados = 0;
     let fallidos = 0;
 

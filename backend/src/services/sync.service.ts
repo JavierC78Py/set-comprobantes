@@ -116,7 +116,9 @@ export class SyncService {
       tenantId,
       tenant.ruc,
       tenantConfig,
-      payload.batch_size ?? 50
+      payload.batch_size ?? 50,
+      payload.fecha_desde,
+      payload.fecha_hasta
     );
 
     logger.info('Envío ORDS completado', {

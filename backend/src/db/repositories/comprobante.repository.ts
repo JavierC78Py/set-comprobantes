@@ -211,8 +211,37 @@ export async function findComprobanteById(
 
 export async function findPendingOrdsEnvios(
   tenantId: string,
-  limit = 50
+  limit = 50,
+  fechaDesde?: string,
+  fechaHasta?: string
 ): Promise<ComprobanteEnvioOrds[]> {
+  if (fechaDesde || fechaHasta) {
+    const conditions: string[] = ['eo.tenant_id = $1', 'eo.estado_envio IN (\'PENDING\', \'FAILED\')'];
+    const params: unknown[] = [tenantId];
+    let i = 2;
+
+    if (fechaDesde) {
+      conditions.push(`c.fecha_emision >= $${i++}`);
+      params.push(fechaDesde);
+    }
+    if (fechaHasta) {
+      conditions.push(`c.fecha_emision <= $${i++}`);
+      params.push(fechaHasta);
+    }
+    params.push(limit);
+
+    return query<ComprobanteEnvioOrds>(
+      `SELECT eo.* FROM comprobante_envio_ords eo
+       JOIN comprobantes c ON c.id = eo.comprobante_id
+       WHERE ${conditions.join(' AND ')}
+       ORDER BY
+         CASE eo.estado_envio WHEN 'PENDING' THEN 0 ELSE 1 END,
+         eo.created_at ASC
+       LIMIT $${i}`,
+      params
+    );
+  }
+
   return query<ComprobanteEnvioOrds>(
     `SELECT * FROM comprobante_envio_ords
      WHERE tenant_id = $1 AND estado_envio IN ('PENDING', 'FAILED')
